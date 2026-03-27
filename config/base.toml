@@ -1,0 +1,221 @@
+[project]
+name = "forex-pipeline"
+version = "0.1.0"
+
+[data]
+storage_path = "G:\\My Drive\\ForexPipeline"
+default_pair = "EURUSD"
+default_timeframe = "M1"
+supported_timeframes = ["M1", "M5", "H1", "D1", "W"]
+
+[data.download]
+source = "dukascopy"
+
+[data.quality]
+gap_threshold_bars = 5
+gap_warning_per_year = 10
+gap_error_per_year = 50
+gap_error_minutes = 30
+spread_multiplier_threshold = 10.0
+stale_consecutive_bars = 5
+score_green_threshold = 0.95
+score_yellow_threshold = 0.80
+
+[sessions]
+timezone = "UTC"
+
+[sessions.asian]
+start = "00:00"
+end = "08:00"
+label = "Asian"
+
+[sessions.london]
+start = "08:00"
+end = "16:00"
+label = "London"
+
+[sessions.new_york]
+start = "13:00"
+end = "21:00"
+label = "New York"
+
+[sessions.london_ny_overlap]
+start = "13:00"
+end = "16:00"
+label = "London/NY Overlap"
+
+[sessions.off_hours]
+start = "21:00"
+end = "00:00"
+label = "Off Hours"
+
+[logging]
+level = "INFO"
+log_dir = "logs"
+max_file_size_mb = 50
+retention_days = 30
+
+[pipeline]
+artifacts_dir = "artifacts"
+checkpoint_enabled = true
+retry_max_attempts = 3
+retry_backoff_base_s = 2.0
+gated_stages = ["review-pending", "validation-complete", "scoring-complete", "selection-complete"]
+checkpoint_granularity = 1000
+
+[data_pipeline]
+storage_path = "G:\\My Drive\\ForexPipeline"
+default_resolution = "M1"
+request_delay_seconds = 0.5
+max_retries = 3
+contracts_path = "contracts"
+
+[data_pipeline.storage]
+arrow_ipc_path = "G:\\My Drive\\ForexPipeline\\arrow"
+parquet_path = "G:\\My Drive\\ForexPipeline\\parquet"
+
+[data_pipeline.parquet]
+compression = "snappy"  # options: snappy, zstd, gzip, none
+
+[data_pipeline.timeframe_conversion]
+target_timeframes = ["M5", "H1", "D1", "W"]
+source_timeframe = "M1"
+daily_open_utc_hour = 22  # IC Markets GMT+2: daily candle opens at 22:00 UTC
+
+[data_pipeline.reference_dataset]
+pair = "EURUSD"
+start_date = "2025-01-01"
+end_date = "2025-12-31"
+resolution = "tick"
+source = "dukascopy"
+
+[data_pipeline.splitting]
+split_ratio = 0.7
+split_mode = "ratio"  # options: ratio, date
+split_date = ""        # required if split_mode = "date" (ISO 8601, e.g. "2024-07-01")
+
+[data_pipeline.download]
+pairs = ["EURUSD"]
+start_date = "2015-01-01"
+end_date = "2025-12-31"
+resolution = "M1"
+
+[strategy]
+artifacts_dir = "artifacts/strategies"
+defaults_file = "config/strategies/defaults.toml"
+
+[monitoring]
+heartbeat_interval_ms = 5000
+alert_on_disconnect = true
+
+[optimization]
+batch_size = 2048
+max_generations = 500
+checkpoint_interval_generations = 10
+cv_lambda = 1.5
+cv_folds = 5
+convergence_tolfun = 1e-3
+stagnation_generations = 50
+memory_budget_mb = 5632
+sobol_fraction = 0.1
+ucb1_exploration = 1.414
+use_persistent_worker = false  # true = use persistent Rust workers (Phase 1)
+persistent_workers = 4         # number of long-lived worker processes
+persistent_eval_timeout = 120  # seconds before killing unresponsive worker
+
+[optimization.progressive_narrowing]
+enabled = false
+trigger_generation = 50
+range_multiplier = 2.0
+
+[optimization.signal_cache]
+max_entries = 256
+max_cache_bytes = 80_000_000_000
+parallelism = 4
+log_stats_interval = 10
+
+[optimization.portfolio]
+cmaes_instances = 10
+de_instances = 3
+cmaes_pop_base = 128
+de_pop_base = 150
+pop_scaling_factor = 5
+min_pop = 128
+
+[validation]
+stage_order = ["perturbation", "walk_forward", "cpcv", "monte_carlo", "regime"]
+short_circuit_on_validity_failure = true
+checkpoint_interval = 1
+deterministic_seed_base = 42
+
+[validation.walk_forward]
+n_windows = 5
+train_ratio = 0.80
+purge_bars = 1440
+embargo_bars = 720
+
+[validation.cpcv]
+n_groups = 10
+k_test_groups = 3
+purge_bars = 1440
+embargo_bars = 720
+pbo_red_threshold = 0.40
+
+[validation.perturbation]
+levels = [0.05, 0.10, 0.20]
+min_performance_retention = 0.70
+
+[validation.monte_carlo]
+n_bootstrap = 1000
+n_permutation = 1000
+stress_multipliers = [1.5, 2.0, 3.0]
+confidence_level = 0.95
+
+[validation.regime]
+volatility_quantiles = [0.333, 0.667]
+min_trades_per_bucket = 30
+sessions = ["asian", "london", "new_york", "london_ny_overlap"]
+
+[validation.dsr]
+significance_level = 0.05
+
+[confidence]
+# Hard gates — any failure → immediate RED
+[confidence.hard_gates]
+dsr_pass_required = true          # DSR must pass (D11 mandatory >10 candidates)
+pbo_max_threshold = 0.40          # PBO ≤ 0.40 (D11)
+cost_stress_survival_multiplier = 1.5  # Must survive 1.5x cost inflation
+
+# Component weights for composite score (must sum to 1.0)
+[confidence.weights]
+walk_forward_oos_consistency = 0.25  # OOS Sharpe consistency across windows
+cpcv_pbo_margin = 0.15              # How far below PBO threshold
+parameter_stability = 0.15           # Mean sensitivity from perturbation
+monte_carlo_stress_survival = 0.15   # % of bootstrap/permutation/stress passing
+regime_uniformity = 0.15             # Performance spread across regimes
+in_sample_oos_coherence = 0.15       # IS vs OOS metric divergence (FR35)
+
+# Rating thresholds (applied after hard gates pass)
+[confidence.thresholds]
+green_minimum = 0.70               # Composite >= 0.70 → GREEN
+yellow_minimum = 0.40              # Composite >= 0.40 → YELLOW
+# Below yellow_minimum → RED (even if hard gates passed)
+
+# Anomaly detection
+[confidence.anomaly]
+min_population_size = 20           # Minimum candidates for cross-population tests
+
+[selection]
+min_cluster_size = 5
+hdbscan_min_samples = 3
+topsis_top_n = 50
+stability_threshold = 0.3
+target_candidates = 10
+deterministic_ratio = 0.8
+diversity_dimensions = ["trade_frequency", "avg_holding_time", "win_rate", "max_drawdown"]
+max_clustering_candidates = 5000
+# random_seed = 42  # uncomment to fix seed; default derives from optimization_run_id hash
+
+[execution]
+enabled = false
+mode = "practice"

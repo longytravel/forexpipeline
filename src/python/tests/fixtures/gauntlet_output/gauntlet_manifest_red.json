@@ -1,0 +1,41 @@
+{
+  "candidate_id": 3,
+  "optimization_run_id": "opt_20260322_abc123",
+  "strategy_id": "ma_crossover",
+  "total_optimization_trials": 5000,
+  "candidate_rank": 5,
+  "dataset_hash": "abc123",
+  "strategy_spec_hash": "def456",
+  "config_hash": "ghi789",
+  "validation_config_hash": "sha256:jkl012",
+  "research_brief_versions": {"5A": "v1", "5B": "v1", "5C": "v1"},
+  "gate_results": {
+    "pbo_value": 0.55,
+    "pbo_passed": false,
+    "dsr_passed": true,
+    "dsr_value": 1.50,
+    "short_circuited": false,
+    "hard_gate_failures": ["pbo_threshold"]
+  },
+  "per_stage_metric_ids": {
+    "walk_forward": "wf_metrics_cand3",
+    "cpcv": "cpcv_metrics_cand3",
+    "perturbation": "pert_metrics_cand3",
+    "monte_carlo": "mc_metrics_cand3",
+    "regime": "regime_metrics_cand3"
+  },
+  "per_stage_summaries": {
+    "walk_forward": {"median_oos_sharpe": 0.35, "window_count": 10, "negative_windows": 4},
+    "cpcv": {"pbo": 0.55, "mean_oos_sharpe": 0.40, "combination_count": 45},
+    "perturbation": {"max_sensitivity": 0.45, "mean_sensitivity": 0.30, "cliff_count": 2},
+    "monte_carlo": {"bootstrap_ci_lower": -0.05, "stress_survived": false, "permutation_p_value": 0.12},
+    "regime": {"weakest_sharpe": 0.05, "strongest_sharpe": 1.80, "insufficient_buckets": 2}
+  },
+  "chart_data_refs": {
+    "equity_curves": "artifacts/ma_crossover/v001/validation/equity-curves-cand3.arrow",
+    "walk_forward_windows": "artifacts/ma_crossover/v001/validation/wf-windows-cand3.arrow",
+    "perturbation_results": "artifacts/ma_crossover/v001/validation/perturbation-cand3.arrow",
+    "monte_carlo_results": "artifacts/ma_crossover/v001/validation/mc-results-cand3.arrow",
+    "regime_results": "artifacts/ma_crossover/v001/validation/regime-cand3.arrow"
+  }
+}

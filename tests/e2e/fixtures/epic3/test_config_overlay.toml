@@ -1,0 +1,16 @@
+# Epic 3 E2E Pipeline Proof — test-local config overlay
+# Merged with config/base.toml at test startup.
+# Do NOT mutate config/base.toml — this overlay is self-contained.
+
+[backtesting.reference]
+strategy_id = "ma_crossover_eurusd_h1"
+# Paths are set dynamically by the test fixture, not hardcoded here.
+# This overlay documents the expected config structure.
+
+[pipeline]
+artifacts_dir = "artifacts"
+checkpoint_enabled = true
+retry_max_attempts = 3
+retry_backoff_base_s = 2.0
+gated_stages = ["review-pending"]
+checkpoint_granularity = 1000

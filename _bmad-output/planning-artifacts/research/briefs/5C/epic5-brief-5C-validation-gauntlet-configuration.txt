@@ -1,0 +1,120 @@
+# Research Brief 5C: Validation Gauntlet Configuration & Confidence Score Aggregation
+
+## Context
+
+The validation gauntlet runs selected candidates through multiple independent tests (FR29-FR37). Brief 3B established the **what** (walk-forward, CPCV, Monte Carlo, regime analysis, DSR/PBO). This brief is about the **how** — parameterization, thresholds, and how to combine results into the confidence score (FR34).
+
+**Critical nuance:** Our optimization already uses **CV-inside-objective** (mean - lambda * std across K folds). This means candidates entering the validation gauntlet have already been selected for cross-fold robustness. The gauntlet is a second, independent layer of validation — it must test things the CV-objective doesn't already cover.
+
+**What we already know:**
+- Walk-forward + CPCV are the core validation tools (Brief 3B)
+- DSR + PBO are primary overfitting gates (Brief 3B)
+- Regime analysis starts with volatility terciles (Brief 3B)
+- Two-tier anomaly detection: silent scoring + surfaced flags (Brief 3C)
+- CV-objective already handles cross-regime robustness to some degree (folds span different market conditions)
+
+## Research Questions
+
+### 1. Walk-Forward Validation Configuration (FR29)
+The CV-inside-objective already evaluates across folds. Walk-forward adds temporal ordering (train on past, test on future). Key questions:
+
+- **Window sizing for forex M1 data**: Given ~5.26M bars over 10 years, what are recommended window sizes? Anchored (growing train set) vs. rolling (fixed-width train window) vs. expanding?
+- **Number of windows**: 4? 8? 12? What's the minimum for statistical significance? What's the maximum before windows become too short?
+- **Step size**: How far forward to step between windows? Overlapping vs. non-overlapping?
+- **Purge/embargo gap**: With CV-inside-objective already used, what gap between train and test windows prevents leakage? How many bars for forex M1? (Brief 3B mentions CPCV purging but doesn't size it)
+- **Interaction with CV-objective**: The optimizer already used K-fold CV. Walk-forward is a different slicing of the same data. How to ensure the walk-forward test is genuinely out-of-sample relative to the CV folds? Or is the point that it's a different validation methodology (temporal vs. random)?
+- **Per-window metrics**: What should each window produce? (Sharpe, drawdown, trade count, profit factor — minimum to assess consistency)
+- **Aggregation across windows**: How to combine per-window results? Mean? Worst window? Percentage of profitable windows?
+
+### 2. CPCV Configuration (FR30)
+Combinatorial Purged Cross-Validation generates many train/test splits from limited data.
+
+- **Number of groups (N) and test groups (k)**: Typical values for financial time series? (N=10, k=2 is common in literature — is this right for our data volume?)
+- **Purge window size**: How many bars to purge between adjacent train/test groups for forex M1? (Need to account for indicator lookback periods and strategy holding times)
+- **Embargo period**: Additional gap after test period to prevent leakage from lagged features?
+- **Interaction with CV-inside-objective**: If the optimizer already used K-fold, CPCV should use DIFFERENT fold boundaries. How to ensure independence?
+- **PBO calculation from CPCV results**: How exactly is Probability of Backtest Overfitting computed from CPCV output? What PBO threshold = RED flag?
+
+### 3. Parameter Stability / Perturbation Analysis (FR31)
+Test whether small parameter changes produce similar results.
+
+- **Perturbation methodology**: How much to perturb each parameter? Percentage of range? Fixed step? Random within neighborhood?
+- **Neighborhood definition**: For a parameter vector of 15-30 dimensions, how to define "small change"? L2 ball? Per-parameter percentage?
+- **Number of perturbations**: How many perturbed versions to test per candidate? 50? 100? 1000?
+- **Stability metrics**: Standard deviation of performance across perturbations? Coefficient of variation? Performance drop threshold?
+- **Visualization**: How to show parameter stability? Sensitivity heatmaps? Performance surface slices?
+- **Pass/fail threshold**: What level of instability = RED flag? (e.g., "if 10% perturbation causes >50% performance drop, flag as unstable")
+
+### 4. Monte Carlo Simulation Configuration (FR32)
+Three types specified: bootstrap, permutation, stress testing.
+
+**Bootstrap (randomize trade order):**
+- How many simulations? (1000? 5000? 10000?)
+- What to measure? (Drawdown distribution, bust probability, confidence intervals on Sharpe)
+- How to interpret results? (If 5th percentile Sharpe < 0, flag?)
+
+**Permutation (shuffle returns):**
+- Purpose: test if results are due to order of trades (serial correlation in returns)
+- How many permutations? What p-value threshold for significance?
+
+**Stress testing (widen spreads, increase slippage):**
+- How much to stress? (1.5x, 2x, 3x current cost model?)
+- Which cost components to stress? (Spread only? Slippage only? Both?)
+- At what stress level should strategy still be profitable? (1.5x = GREEN, 2x = YELLOW, breaks at 1.5x = RED?)
+- Should stress testing also vary market conditions (e.g., reduce favorable regime proportion)?
+
+### 5. Regime Analysis Configuration (FR33)
+Brief 3B recommended starting with volatility terciles. More specific questions:
+
+- **Regime definition**: Realized volatility over what lookback? (20-day? 60-day?) Terciles vs. quartiles vs. HMM-derived?
+- **Session interaction**: Should regime analysis be crossed with forex sessions (Asian/London/NY)? That gives 3 regimes x 3 sessions = 9 buckets — is that too many given trade count?
+- **Minimum trades per bucket**: What's the minimum trade count in a regime/session bucket for the analysis to be meaningful? (30? 50? 100?)
+- **Per-regime metrics**: Same as walk-forward per-window? Or different?
+- **Failure criteria**: "Strategy loses money in trending markets" — is that a RED flag or just informational? What if it only works in one regime but works well?
+
+### 6. Confidence Score Aggregation (FR34)
+This is the key integration question. How to combine:
+- Walk-forward results (per-window consistency)
+- CPCV results (cross-validation robustness + PBO)
+- Parameter stability (perturbation sensitivity)
+- Monte Carlo (drawdown distribution, stress resilience)
+- Regime analysis (per-regime performance)
+- DSR gate (selection bias correction)
+
+Into a single **RED / YELLOW / GREEN** rating with detailed breakdown.
+
+Questions:
+- **Weighting**: Equal weight across all tests? Or some matter more? (CV-objective + walk-forward might be more important than Monte Carlo)
+- **Gate vs. score**: Should some tests be hard gates (fail = RED regardless) while others contribute to a continuous score?
+- **Aggregation formula**: Additive? Multiplicative? Minimum across components? Bayesian?
+- **Threshold calibration**: What makes GREEN vs. YELLOW vs. RED? Should thresholds be relative (top 20% = GREEN) or absolute (Sharpe > 1.0 AND PBO < 0.3 AND stability > 0.8)?
+- **Breakdown visualization**: How to present the score breakdown so the operator understands why a strategy got YELLOW?
+- **Published approaches**: Do any quant platforms or academic papers propose a composite validation score? QuantConnect's Alpha Framework? Any others?
+
+### 7. Interaction Between Validation Layers
+The gauntlet stages aren't independent — they test overlapping aspects of robustness:
+- CV-objective tests cross-fold generalization (already done in optimization)
+- Walk-forward tests temporal generalization
+- CPCV tests combinatorial generalization + measures overfitting probability
+- Parameter stability tests local robustness
+- Monte Carlo tests statistical significance and stress resilience
+- Regime analysis tests condition-specific performance
+
+How should we think about **redundancy** between these? Is there an optimal ordering (cheapest/fastest filters first)? Should we short-circuit (if walk-forward fails badly, skip Monte Carlo)?
+
+## Deliverable Expected
+
+1. **Walk-forward configuration**: Window sizing, count, step size, purge gap, aggregation method
+2. **CPCV configuration**: N groups, k test groups, purge/embargo sizing, PBO threshold
+3. **Perturbation protocol**: Methodology, number of perturbations, stability metrics, thresholds
+4. **Monte Carlo parameters**: Sim counts for bootstrap/permutation/stress, interpretation thresholds
+5. **Regime configuration**: Definition methodology, interaction with sessions, minimum trade counts
+6. **Confidence score formula**: Components, weights, gates, thresholds, aggregation method
+7. **Gauntlet ordering**: Recommended sequence and short-circuit logic
+
+## Constraints
+- Must work with ~200-2000 trades per candidate (forex intraday on one pair)
+- Must be computationally feasible (each candidate through gauntlet should complete in minutes, not hours)
+- Must produce explainable results (operator must understand why RED/YELLOW/GREEN)
+- Must account for the fact that CV-inside-objective already provides baseline robustness
+- Results must feed into the evidence pack system (every test produces reviewable artifacts)

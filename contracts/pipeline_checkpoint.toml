@@ -1,0 +1,48 @@
+# Pipeline Checkpoint Contract — Cross-Runtime SSOT
+# Python reader: src/python/orchestrator/pipeline_state.py (WithinStageCheckpoint)
+# Rust writer: Story 3-4 implements the batch binary checkpoint writer
+#
+# This contract defines the schema for within-stage checkpoint files
+# written by the Rust batch binary and read by the Python orchestrator
+# on resume. Both sides must conform to this schema.
+
+[checkpoint]
+description = "Within-stage checkpoint for long-running batch stages"
+file_pattern = "checkpoint-{stage}.json"
+location = "artifacts/{strategy_id}/checkpoint-{stage}.json"
+
+[checkpoint.fields.stage]
+type = "string"
+required = true
+description = "PipelineStage value indicating which stage this checkpoint belongs to"
+allowed = ["data-ready", "strategy-ready", "backtest-running", "backtest-complete", "review-pending", "reviewed"]
+
+[checkpoint.fields.progress_pct]
+type = "float"
+required = true
+min = 0.0
+max = 100.0
+description = "Percentage of stage work completed (0.0 to 100.0)"
+
+[checkpoint.fields.last_completed_batch]
+type = "integer"
+required = true
+min = 0
+description = "Index of the last fully completed batch (zero-based)"
+
+[checkpoint.fields.total_batches]
+type = "integer"
+required = true
+min = 1
+description = "Total number of batches in this stage execution"
+
+[checkpoint.fields.partial_artifact_path]
+type = "string"
+required = false
+description = "Path to partial artifact file (.partial) if incremental output is being written"
+
+[checkpoint.fields.checkpoint_at]
+type = "string"
+required = true
+format = "iso8601_utc"
+description = "ISO 8601 UTC timestamp of when this checkpoint was written"

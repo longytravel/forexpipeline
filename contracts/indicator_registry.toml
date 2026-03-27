@@ -1,0 +1,185 @@
+# Indicator Registry Contract (D10, Story 2.3)
+# Single source of truth for known indicator types.
+# Both Python (Story 2.3) and Rust (Story 2.8) consume this file.
+# Seeded from Story 2.1 indicator catalogue (20 indicators) + hidden_smash_day (21 total).
+# Extensible: add indicators here without code changes.
+
+# --- Trend Indicators ---
+
+[indicators.sma]
+name = "SMA"
+category = "trend"
+description = "Simple Moving Average"
+required_params = ["period"]
+optional_params = []
+
+[indicators.ema]
+name = "EMA"
+category = "trend"
+description = "Exponential Moving Average"
+required_params = ["period"]
+optional_params = []
+
+[indicators.ema_crossover]
+name = "EMA Crossover"
+category = "trend"
+description = "EMA fast/slow crossover signal"
+required_params = ["fast_period", "slow_period"]
+optional_params = []
+
+[indicators.sma_crossover]
+name = "SMA Crossover"
+category = "trend"
+description = "SMA fast/slow crossover signal"
+required_params = ["fast_period", "slow_period"]
+optional_params = []
+
+# --- Volatility Indicators ---
+
+[indicators.true_range]
+name = "True Range"
+category = "volatility"
+description = "True Range (single bar)"
+required_params = []
+optional_params = []
+
+[indicators.atr]
+name = "ATR"
+category = "volatility"
+description = "Average True Range (Wilder's smoothing)"
+required_params = ["period"]
+optional_params = []
+
+[indicators.bollinger_bands]
+name = "Bollinger Bands"
+category = "volatility"
+description = "Bollinger Bands (middle, upper, lower)"
+required_params = ["period", "num_std"]
+optional_params = []
+
+[indicators.donchian_channel]
+name = "Donchian Channel"
+category = "volatility"
+description = "Donchian Channel (upper, middle, lower)"
+required_params = ["period"]
+optional_params = []
+
+[indicators.keltner_channel]
+name = "Keltner Channel"
+category = "volatility"
+description = "Keltner Channel (EMA +/- ATR multiplier)"
+required_params = ["ema_period", "atr_period", "atr_multiplier"]
+optional_params = []
+
+[indicators.supertrend]
+name = "Supertrend"
+category = "volatility"
+description = "Supertrend indicator"
+required_params = ["period", "multiplier"]
+optional_params = []
+
+# --- Momentum Indicators ---
+
+[indicators.rsi]
+name = "RSI"
+category = "momentum"
+description = "Relative Strength Index"
+required_params = ["period"]
+optional_params = []
+
+[indicators.macd]
+name = "MACD"
+category = "momentum"
+description = "MACD (line, signal, histogram)"
+required_params = ["fast_period", "slow_period", "signal_period"]
+optional_params = []
+
+[indicators.adx]
+name = "ADX"
+category = "momentum"
+description = "Average Directional Index (+DI, -DI)"
+required_params = ["period"]
+optional_params = []
+
+[indicators.williams_r]
+name = "Williams %R"
+category = "momentum"
+description = "Williams Percent Range"
+required_params = ["period"]
+optional_params = []
+
+[indicators.cci]
+name = "CCI"
+category = "momentum"
+description = "Commodity Channel Index"
+required_params = ["period"]
+optional_params = []
+
+[indicators.stochastic]
+name = "Stochastic"
+category = "momentum"
+description = "Stochastic Oscillator (%K, %D)"
+required_params = ["k_period", "d_period"]
+optional_params = ["slowing"]
+
+# --- Price Action / Reversal Indicators ---
+
+[indicators.hidden_smash_day]
+name = "Hidden Smash Day"
+category = "price_action"
+description = "Larry Williams Hidden Smash Day reversal pattern. Detects bars where close contradicts apparent direction (close in wrong quarter of range). Supports buy and sell setups with optional confirmation from following bar."
+required_params = ["range_threshold"]
+optional_params = ["require_close_vs_open", "confirmation_mode"]
+
+# --- Structure Indicators ---
+
+[indicators.rolling_max]
+name = "Rolling Max"
+category = "structure"
+description = "Rolling maximum over window"
+required_params = ["period"]
+optional_params = []
+
+[indicators.rolling_min]
+name = "Rolling Min"
+category = "structure"
+description = "Rolling minimum over window"
+required_params = ["period"]
+optional_params = []
+
+[indicators.swing_highs]
+name = "Swing Highs"
+category = "structure"
+description = "Swing high detection"
+required_params = ["left_bars", "right_bars"]
+optional_params = []
+
+[indicators.swing_lows]
+name = "Swing Lows"
+category = "structure"
+description = "Swing low detection"
+required_params = ["left_bars", "right_bars"]
+optional_params = []
+
+[indicators.market_structure]
+name = "Market Structure"
+category = "structure"
+description = "Market structure bias from swing sequences: bullish (HH+HL=1), bearish (LL+LH=-1), neutral (0)."
+required_params = ["swing_bars"]
+optional_params = []
+
+# --- Composite / Multi-TF Indicators ---
+
+[indicators.swing_pullback]
+name = "Swing Pullback"
+category = "price_action"
+description = "Multi-timeframe swing extreme pullback signal. HTF structural bias + LTF swing overextension (ATR-filtered). Returns 1.0 (buy), -1.0 (sell), or 0.0."
+required_params = ["swing_bars", "atr_period", "atr_multiplier", "htf_timeframe"]
+optional_params = []
+
+[indicators.channel_breakout]
+name = "Channel Breakout"
+category = "price_action"
+description = "Adaptive parallel channel breakout signal. Builds channels from ATR-filtered swing highs/lows, detects breakouts with confirmation bars and market structure alignment. Returns 1.0 (bullish breakout), -1.0 (bearish breakout), or 0.0."
+required_params = ["swing_bars", "atr_period", "atr_multiplier", "confirmation_bars"]
+optional_params = ["use_close"]

@@ -1,0 +1,68 @@
+# Valid MA Crossover test fixture (v2 flat parameter format, mirrors v002.toml structure)
+
+[metadata]
+schema_version = "1"
+name = "ma-crossover"
+version = "v001"
+pair = "EURUSD"
+timeframe = "H1"
+created_by = "test-fixture"
+
+[optimization_plan]
+schema_version = 2
+objective_function = "sharpe"
+
+[[entry_rules.conditions]]
+indicator = "sma_crossover"
+threshold = 0.0
+comparator = "crosses_above"
+
+[entry_rules.conditions.parameters]
+fast_period = 20
+slow_period = 50
+
+[[entry_rules.filters]]
+type = "session"
+
+[entry_rules.filters.params]
+include = ["london"]
+
+[exit_rules.stop_loss]
+type = "atr_multiple"
+value = 1.5
+
+[exit_rules.take_profit]
+type = "risk_reward"
+value = 3.0
+
+[exit_rules.trailing]
+type = "chandelier"
+
+[exit_rules.trailing.params]
+atr_period = 14
+atr_multiplier = 3.0
+
+[position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 1.0
+
+[optimization_plan.parameters.fast_period]
+type = "integer"
+min = 5.0
+max = 50.0
+step = 5.0
+
+[optimization_plan.parameters.slow_period]
+type = "integer"
+min = 20.0
+max = 200.0
+step = 10.0
+
+[optimization_plan.parameters.atr_multiplier]
+type = "continuous"
+min = 1.0
+max = 5.0
+
+[cost_model_reference]
+version = "v001"

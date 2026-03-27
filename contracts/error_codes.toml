@@ -1,0 +1,24 @@
+[resource]
+RESOURCE_MEMORY_PRESSURE = { severity = "warning", recoverable = true, action = "throttle" }
+RESOURCE_THERMAL_THROTTLE = { severity = "warning", recoverable = true, action = "throttle" }
+RESOURCE_DISK_FULL = { severity = "error", recoverable = false, action = "stop" }
+
+[data]
+DATA_CORRUPT_ARROW = { severity = "error", recoverable = false, action = "stop" }
+DATA_SCHEMA_MISMATCH = { severity = "error", recoverable = false, action = "stop" }
+DATA_QUALITY_FAILED = { severity = "warning", recoverable = true, action = "alert" }
+
+[strategy]
+STRATEGY_SPEC_INVALID = { severity = "error", recoverable = false, action = "stop" }
+STRATEGY_EVAL_FAILED = { severity = "error", recoverable = false, action = "stop" }
+STRATEGY_ZERO_TRADES = { severity = "warning", recoverable = true, action = "alert" }
+SPEC_SCHEMA_INVALID = { severity = "fatal", recoverable = false, action = "Fix specification and retry" }
+SPEC_INDICATOR_UNKNOWN = { severity = "fatal", recoverable = false, action = "Add indicator to registry or fix spec" }
+SPEC_PARAM_RANGE_INVALID = { severity = "fatal", recoverable = false, action = "Fix parameter ranges (min < max, step > 0)" }
+SPEC_COST_MODEL_REF_INVALID = { severity = "fatal", recoverable = false, action = "Fix cost_model_reference version string" }
+SPEC_VERSION_CONFLICT = { severity = "fatal", recoverable = false, action = "Version already exists; save creates new version" }
+
+[external]
+EXTERNAL_MT5_DISCONNECT = { severity = "warning", recoverable = true, action = "retry" }
+EXTERNAL_DUKASCOPY_TIMEOUT = { severity = "warning", recoverable = true, action = "retry" }
+EXTERNAL_MT5_ORDER_REJECTED = { severity = "error", recoverable = false, action = "alert" }

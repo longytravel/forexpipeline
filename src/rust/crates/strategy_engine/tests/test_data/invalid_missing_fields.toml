@@ -1,0 +1,36 @@
+# Invalid: missing required fields (no entry_rules conditions, no stop_loss value)
+# This tests that the parser rejects incomplete specs
+
+[metadata]
+schema_version = "1"
+name = "missing-fields"
+version = "v001"
+pair = "EURUSD"
+timeframe = "H1"
+created_by = "test-fixture"
+
+# entry_rules has no conditions — will fail validation
+[entry_rules]
+
+[exit_rules.stop_loss]
+type = "fixed_pips"
+value = 30.0
+
+[position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 1.0
+
+[[optimization_plan.parameter_groups]]
+name = "entry"
+parameters = ["period"]
+[optimization_plan.parameter_groups.ranges.period]
+min = 5.0
+max = 50.0
+step = 5.0
+
+[optimization_plan]
+objective_function = "sharpe"
+
+[cost_model_reference]
+version = "v001"

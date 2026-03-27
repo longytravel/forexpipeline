@@ -1,0 +1,51 @@
+# Invalid: has 3+ distinct errors to verify collect-all behavior
+# Error 1: invalid timeframe "M3"
+# Error 2: unknown indicator "macd" (not in V1 registry)
+# Error 3: bad session label "tokyo"
+# Error 4: max_lots = 0 (must be > 0)
+# Error 5: invalid objective function "custom"
+
+[metadata]
+schema_version = "1"
+name = "multi-error"
+version = "v001"
+pair = "EURUSD"
+timeframe = "M3"
+created_by = "test-fixture"
+
+[[entry_rules.conditions]]
+indicator = "macd"
+threshold = 0.0
+comparator = ">"
+[entry_rules.conditions.parameters]
+fast_period = 12
+slow_period = 26
+signal_period = 9
+
+[[entry_rules.filters]]
+type = "session"
+[entry_rules.filters.params]
+include = ["tokyo"]
+
+[exit_rules.stop_loss]
+type = "fixed_pips"
+value = 30.0
+
+[position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 0.0
+
+[[optimization_plan.parameter_groups]]
+name = "entry"
+parameters = ["fast_period"]
+[optimization_plan.parameter_groups.ranges.fast_period]
+min = 5.0
+max = 50.0
+step = 5.0
+
+[optimization_plan]
+objective_function = "custom"
+
+[cost_model_reference]
+version = "v001"

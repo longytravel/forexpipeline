@@ -1,0 +1,11 @@
+# VPS production environment overrides
+[execution]
+enabled = true
+mode = "practice"
+
+[logging]
+level = "INFO"
+
+[monitoring]
+heartbeat_interval_ms = 5000
+alert_on_disconnect = true

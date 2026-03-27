@@ -1,0 +1,56 @@
+# Story 2-1-claudebacktester-strategy-evaluator-review: Story 2.1: ClaudeBackTester Strategy Evaluator Review — Codex PIR
+
+**Reviewer:** Codex GPT-5.4 (high effort, read-only sandbox)
+**Date:** 2026-03-15
+**Type:** Post-Implementation Review (alignment analysis)
+
+---
+
+**1. Objective Alignment**
+
+Assessment: `ADEQUATE`
+
+Specific evidence:
+- The story is explicitly a research artifact, not code, with a single persisted output at [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:145](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L145) and [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:149](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L149).
+- It advances reproducibility by pinning the reviewed baseline in the artifact header at [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:3](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L3), matching the story’s traceability requirement at [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:52](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L52).
+- It advances fidelity by preserving signal-parity verification, documenting sub-bar resolution, and carrying forward the causality guard in [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:32](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L32), [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:218](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L218), [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:721](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L721), and [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:776](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L776).
+- It advances artifact completeness for this stage by producing the full catalogue/verdict/gap-analysis package required for downstream work at [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:161](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L161), [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:211](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L211), and [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:123](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L123).
+- The PRD’s operator goal is “without requiring the operator to write code” and “review a coherent evidence pack” in [_bmad-output/planning-artifacts/prd.md:54](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/prd.md#L54) and [_bmad-output/planning-artifacts/prd.md:83](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/prd.md#L83), while this artifact is still heavily implementation-facing.
+
+Concrete observations:
+- This story clearly helps fidelity and architectural correctness more than it helps non-coder operator confidence. The document is useful to builders; it is not yet an operator-friendly evidence pack.
+- The story fits V1 scope. It stays within the “one strategy family, one pair/timeframe, prove the machinery” philosophy in [_bmad-output/planning-artifacts/prd.md:58](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/prd.md#L58) and [_bmad-output/planning-artifacts/prd.md:119](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/prd.md#L119), and it avoids unnecessary code work.
+- The main tension is the proposed phased migration that keeps indicators in Python in Phase 1 at [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:750](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L750), while D14’s intent is a shared pure-computation crate for backtest/live fidelity at [_bmad-output/planning-artifacts/architecture.md:937](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/architecture.md#L937) and [_bmad-output/planning-artifacts/architecture.md:954](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/architecture.md#L954). That is a valid research finding, but it pushes against the cleanest fidelity story.
+
+**2. Simplification**
+
+Assessment: `ADEQUATE`
+
+Specific evidence:
+- The artifact’s highest-value downstream outputs are the verdict table and indicator catalogue at [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:123](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L123) and [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:161](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L161).
+- Much of the rest is prose interpretation around the same core findings: no declarative spec, no session-aware cost model, keep/adapt/replace decisions at [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:26](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L26), [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:30](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L30), and [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:127](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L127).
+- Existing system proof artifacts are more structured and machine-verifiable, with `dataset_id`, `config_hash`, `reproducibility_verified`, manifest checks, and persisted JSON outputs in [pipeline_proof.py:43](/c/Users/ROG/Projects/Forex%20Pipeline/src/python/data_pipeline/pipeline_proof.py#L43), [pipeline_proof.py:99](/c/Users/ROG/Projects/Forex%20Pipeline/src/python/data_pipeline/pipeline_proof.py#L99), [pipeline_proof.py:666](/c/Users/ROG/Projects/Forex%20Pipeline/src/python/data_pipeline/pipeline_proof.py#L666), [pipeline_proof.py:995](/c/Users/ROG/Projects/Forex%20Pipeline/src/python/data_pipeline/pipeline_proof.py#L995), and [pipeline_proof.py:1020](/c/Users/ROG/Projects/Forex%20Pipeline/src/python/data_pipeline/pipeline_proof.py#L1020).
+
+Concrete observations:
+- A simpler and stronger output would have been: short narrative memo plus machine-readable tables for indicator signatures, verdicts, and checkpoint/schema mappings. That would reduce prose overhead and improve downstream reuse.
+- The proposed “keep indicators in Python for Phase 1” path is not the simplest path to the architecture’s fidelity goal. A narrower V1 approach, porting only the indicators needed for the single chosen strategy family while keeping Python as oracle tests, would likely reduce moving parts.
+- I do not see major waste inside the story itself. The breadth is a little heavy for V1, but it is mostly justified because Story 2.8 explicitly depends on this catalogue.
+
+**3. Forward Look**
+
+Assessment: `ADEQUATE`
+
+Specific evidence:
+- The output clearly gives Story 2.8 its main input: a detailed indicator catalogue and component mapping in [_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md:211](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/implementation-artifacts/2-1-claudebacktester-strategy-evaluator-review.md#L211) and [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:127](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L127).
+- It gives later stories explicit gaps for spec format, NL generation, operator review, versioning, optimization plan, and cost model in [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:680](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L680).
+- It correctly sets a crucial evaluator constraint for future stories: precompute is only safe with a causality guard in [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:721](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L721) and [_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md:786](/c/Users/ROG/Projects/Forex%20Pipeline/_bmad-output/planning-artifacts/research/strategy-evaluator-baseline-review.md#L786).
+- The synthesis report shows the artifact was corrected and regression-checked, which makes it safer as a downstream dependency in [2-1-claudebacktester-strategy-evaluator-review-synthesis-report.md:72](/c/Users/ROG/Projects/Forex%20Pipeline/reviews/synthesis/2-1-claudebacktester-strategy-evaluator-review-synthesis-report.md#L72) and [2-1-claudebacktester-strategy-evaluator-review-synthesis-report.md:94](/c/Users/ROG/Projects/Forex%20Pipeline/reviews/synthesis/2-1-claudebacktester-strategy-evaluator-review-synthesis-report.md#L94).
+
+Concrete observations:
+- The downstream contract is good for humans, but weaker for implementers than it could be because it is prose-only. A machine-readable indicator registry seed and schema-mapping artifact are still missing.
+- The biggest forward-looking risk is ambiguity around the Phase 1 mixed Python/Rust arrangement. D14 expects shared evaluation code for fidelity; this story introduces a transitional architecture without fully defining how parity is guaranteed during that phase.
+- The document catalogues the full baseline, which is useful, but it does not strongly prioritize the V1 subset. That creates some risk that downstream stories build “baseline completeness” instead of “V1 proof.”
+
+OVERALL assessment: `OBSERVE`
+
+The story is directionally aligned and materially useful. It improves fidelity understanding, preserves baseline evidence, and gives downstream stories real inputs. The main observations are that it is more implementer-facing than operator-facing, its output is less structured than the system’s best artifact patterns, and the Phase 1 Python-indicator proposal needs tighter guardrails to avoid weakening D14’s signal-fidelity objective.

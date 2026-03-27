@@ -1,0 +1,78 @@
+# Cost Model Artifact Schema (Story 2.6)
+# Validates cost model JSON artifacts against required structure.
+# Source: architecture.md — D13 Cost Model Crate
+
+[artifact]
+# Top-level required fields
+required = ["pair", "version", "source", "calibrated_at", "sessions"]
+
+[artifact.pair]
+type = "string"
+description = "Currency pair in EURUSD format (no separator)"
+
+[artifact.version]
+type = "string"
+pattern = 'v\d{3,}'
+description = "Artifact version, e.g. v001, v002, v1000"
+
+[artifact.source]
+type = "string"
+enum = ["research", "tick_analysis", "live_calibration"]
+description = "Data source used to build this cost model"
+
+[artifact.calibrated_at]
+type = "string"
+format = "iso8601_utc"
+description = "ISO 8601 UTC timestamp of calibration"
+
+[artifact.sessions]
+type = "table"
+required_keys = ["asian", "london", "new_york", "london_ny_overlap", "off_hours"]
+description = "Per-session cost profiles"
+
+[artifact.metadata]
+type = "table"
+required = false
+description = "Optional metadata about the artifact"
+
+# Per-session profile schema
+[session_profile]
+required = ["mean_spread_pips", "std_spread", "mean_slippage_pips", "std_slippage"]
+
+[session_profile.mean_spread_pips]
+type = "float"
+min = 0.0
+description = "Mean spread in pips for this session"
+
+[session_profile.std_spread]
+type = "float"
+min = 0.0
+description = "Standard deviation of spread in pips"
+
+[session_profile.mean_slippage_pips]
+type = "float"
+min = 0.0
+description = "Mean slippage in pips for this session"
+
+[session_profile.std_slippage]
+type = "float"
+min = 0.0
+description = "Standard deviation of slippage in pips"
+
+# Optional per-session metadata fields
+[session_profile.description]
+type = "string"
+required = false
+
+[session_profile.data_points]
+type = "integer"
+required = false
+
+[session_profile.confidence_level]
+type = "string"
+required = false
+
+[session_profile.slippage_source]
+type = "string"
+required = false
+description = "Whether slippage values are empirical or research_estimate"

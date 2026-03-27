@@ -1,0 +1,72 @@
+# Epic 5 E2E Proof — Test config overlay with tiny budgets
+# Applied on top of config/base.toml for fast E2E test execution
+
+[optimization]
+max_generations = 3
+batch_size = 4
+cv_folds = 2
+budget_trials = 50
+seed_base = 42
+checkpoint_interval_generations = 1
+convergence_tolfun = 1e-1
+stagnation_generations = 2
+sobol_fraction = 0.2
+
+[optimization.portfolio]
+cmaes_instances = 1
+de_instances = 1
+cmaes_pop_base = 8
+de_pop_base = 8
+pop_scaling_factor = 1
+min_pop = 8
+
+[validation]
+stage_order = ["perturbation", "walk_forward", "cpcv", "monte_carlo", "regime"]
+short_circuit_on_validity_failure = true
+checkpoint_interval = 1
+deterministic_seed_base = 42
+
+[validation.walk_forward]
+n_windows = 2
+train_ratio = 0.80
+purge_bars = 10
+embargo_bars = 5
+
+[validation.cpcv]
+n_groups = 4
+k_test_groups = 1
+pbo_red_threshold = 0.40
+
+[validation.perturbation]
+levels = [0.05, 0.10]
+min_performance_retention = 0.70
+
+[validation.monte_carlo]
+n_bootstrap = 50
+n_permutation = 50
+stress_multipliers = [1.5, 2.0]
+
+[validation.regime]
+volatility_quantiles = [0.333, 0.667]
+sessions = ["asian", "london", "new_york", "london_ny_overlap"]
+
+[confidence]
+[confidence.hard_gates]
+dsr_pass_required = true
+pbo_max_threshold = 0.40
+cost_stress_survival_multiplier = 1.5
+
+[confidence.weights]
+walk_forward_oos_consistency = 0.25
+cpcv_pbo_margin = 0.15
+parameter_stability = 0.15
+monte_carlo_stress_survival = 0.15
+regime_uniformity = 0.15
+in_sample_oos_coherence = 0.15
+
+[confidence.thresholds]
+green_minimum = 0.70
+yellow_minimum = 0.40
+
+[e2e]
+epic5_timeout_seconds = 1800

@@ -1,0 +1,77 @@
+# Research Brief 5A: Optimization Algorithm Selection for Batch-Native CV-Objective Search
+
+## Context
+
+Our architecture treats the optimizer as an **opaque state machine** behind an ask/tell interface: Python asks for N candidate parameter vectors, Rust evaluates them in batch (750+ evals/sec, 2048 batch size), Python tells scores back. The objective is a **CV-inside-objective** function (mean - lambda * std across K folds) — every candidate is evaluated across all folds simultaneously, producing a single robust score.
+
+**What we already know:**
+- Optuna is rejected (designed for sequential trial-by-trial, not batch-native high-throughput)
+- 5-stage parameter locking is NOT mandated — staging hides parameter dependencies. The optimizer must handle the full parameter space (potentially 15-30 parameters with conditionals) jointly or decide internally how to structure the search
+- The March 2026 testing showed CMA-ES (broken implementation) performing like random search, and random search outperforming intelligent optimizers on OOS — because the objective was single-block IS, not CV-inside
+- With CV-inside-objective fixing the objective function, we need to re-evaluate which algorithms actually work
+
+**Candidate algorithms identified but not yet evaluated:**
+- CMA-ES with Covariance Matrix Adaptation with Margin (CMAwM) — handles mixed continuous/discrete
+- Differential Evolution (DE) — population-based, naturally batch-parallel
+- Tree-structured Parzen Estimator (TPE) — Bayesian, handles conditionals natively
+- Hybrid approaches (e.g., DE for exploration + CMA-ES for exploitation)
+
+## Research Questions
+
+### 1. Algorithm Comparison for Our Specific Use Case
+For each candidate algorithm (CMA-ES CMAwM, DE, TPE, hybrid), evaluate:
+- **Batch-native suitability**: Can it propose N candidates simultaneously (not one-at-a-time)? What is its natural batch size? Does batch evaluation degrade its search quality?
+- **Dimensionality handling**: How does it scale with 15-30 parameters? At what dimensionality does it break down?
+- **Conditional parameter support**: Our strategies have conditional parameters (e.g., if trailing_stop_enabled=true, then trailing_stop_distance is active). How does each algorithm handle conditional/hierarchical parameter spaces?
+- **CV-objective interaction**: How does each algorithm behave when the objective is noisy (CV mean-lambda*std has inherent variance across folds)? Which are more robust to noisy objectives?
+- **Convergence properties**: How many evaluations to convergence? How does this compare to our budget (10K-100K evaluations)?
+- **Population diversity**: Does the algorithm maintain diversity or collapse to a single basin? (We need diverse candidates for clustering/selection later)
+
+### 2. Mixed Parameter Types
+Our parameter space includes:
+- Continuous (e.g., ATR multiplier 1.0-5.0)
+- Integer (e.g., lookback period 10-200)
+- Categorical (e.g., exit_type: trailing_stop | chandelier | time_based)
+- Conditional (parameters that only exist when a parent parameter has a specific value)
+
+Which algorithms handle this natively vs. requiring encoding/transformation? What are the tradeoffs of encoding (e.g., rounding continuous to integer) vs. native support?
+
+### 3. Ask/Tell Interface Implementation
+For each algorithm, how does the ask/tell pattern work in practice?
+- Available Python libraries with ask/tell support (nevergrad, pymoo, SMAC3, custom implementations)
+- Library maturity, maintenance status, documentation quality
+- How to handle failed evaluations (Rust crash on a candidate)
+- Warm-starting from a previous optimization run
+- Checkpointing and resumption after interruption
+
+### 4. Population Sizing and Budget Allocation
+- Given 750 evals/sec throughput, what's the optimal population size?
+- How to balance exploration vs. exploitation given a fixed evaluation budget?
+- Should we use restarts (multiple independent runs) vs. one long run?
+- Adaptive population sizing — start large for exploration, shrink for exploitation?
+
+### 5. Convergence Detection and Early Stopping
+- How to detect convergence without premature stopping?
+- Stagnation detection (population diversity collapse, objective plateau)
+- When to trigger restarts vs. declaring convergence?
+
+### 6. Benchmarks and Evidence
+- Published benchmarks comparing these algorithms on similar problems (high-dimensional, noisy objective, mixed types)
+- Any trading/quant-specific benchmarks or case studies?
+- What do quantitative trading firms or open-source quant platforms actually use?
+
+## Deliverable Expected
+
+A recommendation with:
+1. **Primary algorithm** choice with rationale
+2. **Fallback/hybrid** strategy if primary underperforms
+3. **Recommended Python library** for ask/tell implementation
+4. **Configuration guidelines** (population size, evaluation budget, convergence criteria)
+5. **Known limitations** and when to switch approaches
+
+## Constraints
+- Must work with ask/tell interface (batch proposal, not sequential)
+- Must handle mixed parameter types including conditionals
+- Must maintain population diversity for downstream candidate clustering
+- Python orchestration, Rust evaluation — no Rust-side algorithm logic
+- Must support checkpointing for crash recovery

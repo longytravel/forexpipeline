@@ -1,0 +1,44 @@
+# Invalid: parameter range has min > max and step = 0
+
+[metadata]
+schema_version = "1"
+name = "bad-params"
+version = "v001"
+pair = "EURUSD"
+timeframe = "H1"
+created_by = "test-fixture"
+
+[optimization_plan]
+schema_version = 2
+objective_function = "sharpe"
+
+[[entry_rules.conditions]]
+indicator = "sma"
+threshold = 0.0
+comparator = "crosses_above"
+
+[entry_rules.conditions.parameters]
+period = 20
+
+[exit_rules.stop_loss]
+type = "fixed_pips"
+value = 30.0
+
+[exit_rules.take_profit]
+type = "fixed_pips"
+value = 60.0
+
+[position_sizing]
+method = "fixed_lots"
+risk_percent = 1.0
+max_lots = 0.1
+
+[optimization_plan.parameters.period]
+type = "integer"
+# min > max (100 > 5) — should fail
+min = 100.0
+max = 5.0
+step = 5.0
+
+[cost_model_reference]
+version = "v001"

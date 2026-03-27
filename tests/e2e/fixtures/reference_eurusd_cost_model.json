@@ -1,0 +1,43 @@
+{
+  "pair": "EURUSD",
+  "version": "v001",
+  "source": "research",
+  "calibrated_at": "2026-03-16T22:25:42Z",
+  "sessions": {
+    "asian": {
+      "mean_spread_pips": 1.2,
+      "std_spread": 0.4,
+      "mean_slippage_pips": 0.1,
+      "std_slippage": 0.05
+    },
+    "london": {
+      "mean_spread_pips": 0.8,
+      "std_spread": 0.3,
+      "mean_slippage_pips": 0.05,
+      "std_slippage": 0.03
+    },
+    "london_ny_overlap": {
+      "mean_spread_pips": 0.6,
+      "std_spread": 0.2,
+      "mean_slippage_pips": 0.03,
+      "std_slippage": 0.02
+    },
+    "new_york": {
+      "mean_spread_pips": 0.9,
+      "std_spread": 0.3,
+      "mean_slippage_pips": 0.06,
+      "std_slippage": 0.03
+    },
+    "off_hours": {
+      "mean_spread_pips": 1.5,
+      "std_spread": 0.6,
+      "mean_slippage_pips": 0.15,
+      "std_slippage": 0.08
+    }
+  },
+  "metadata": {
+    "description": "Research-based EURUSD cost model",
+    "data_points": null,
+    "confidence_level": "research_estimate"
+  }
+}

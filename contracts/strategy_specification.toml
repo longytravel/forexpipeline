@@ -1,0 +1,160 @@
+# Strategy Specification Schema Contract (D10, FR12)
+# Defines the structure for strategy specification TOML files.
+# Both Python (Story 2.3) and Rust (Story 2.8) validators derive from this contract.
+# Single source of truth for spec schema — do not duplicate.
+
+[metadata]
+description = "Strategy identity and versioning metadata"
+fields = [
+  { name = "schema_version", type = "utf8", required = true, default = "1", description = "Schema version for forward compatibility" },
+  { name = "name", type = "utf8", required = true, description = "Strategy name (kebab-case identifier)" },
+  { name = "version", type = "utf8", required = true, pattern = "v\\d{3}", description = "Spec version (v001, v002, ...)" },
+  { name = "pair", type = "utf8", required = true, values = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "XAUUSD"], description = "Trading pair (major pairs)" },
+  { name = "timeframe", type = "utf8", required = true, values = ["M1", "M5", "M15", "H1", "H4", "D1"], description = "Primary timeframe" },
+  { name = "created_by", type = "utf8", required = true, description = "Agent or operator who created the spec" },
+  { name = "config_hash", type = "utf8", required = false, description = "Pipeline config hash (populated by Story 2.5 at confirmation/lock time)" },
+]
+
+[entry_rules]
+description = "Entry signal conditions, filters, and confirmations"
+
+[entry_rules.conditions]
+description = "Array of indicator-based entry conditions (all must be true for signal)"
+element_fields = [
+  { name = "indicator", type = "utf8", required = true, description = "Indicator type from indicator_registry.toml" },
+  { name = "parameters", type = "table", required = true, description = "Indicator-specific parameters" },
+  { name = "threshold", type = "float64", required = true, description = "Comparison threshold value" },
+  { name = "comparator", type = "utf8", required = true, values = [">", "<", "==", ">=", "<=", "crosses_above", "crosses_below"], description = "Comparison operator" },
+]
+
+[entry_rules.filters]
+description = "Array of pre-entry filters (session, volatility, day_of_week)"
+element_fields = [
+  { name = "type", type = "utf8", required = true, values = ["session", "volatility", "day_of_week"], description = "Filter type discriminator" },
+  { name = "params", type = "table", required = true, description = "Filter-type-specific parameters" },
+]
+
+[entry_rules.filters.session_params]
+description = "Parameters when filter type = session"
+fields = [
+  { name = "include", type = "array_utf8", required = true, values = ["asian", "london", "new_york", "london_ny_overlap", "off_hours"], description = "Sessions to allow entry during" },
+]
+
+[entry_rules.filters.volatility_params]
+description = "Parameters when filter type = volatility"
+fields = [
+  { name = "indicator", type = "utf8", required = true, description = "Volatility indicator (e.g., atr)" },
+  { name = "period", type = "int64", required = true, min = 1, description = "Indicator period" },
+  { name = "min_value", type = "float64", required = false, description = "Minimum indicator value threshold" },
+  { name = "max_value", type = "float64", required = false, description = "Maximum indicator value threshold" },
+]
+
+[entry_rules.filters.day_of_week_params]
+description = "Parameters when filter type = day_of_week"
+fields = [
+  { name = "include", type = "array_int64", required = true, min = 0, max = 6, description = "Days to allow (0=Monday, 6=Sunday)" },
+]
+
+[entry_rules.confirmation]
+description = "Optional array of confirmation conditions (same structure as conditions)"
+element_fields = [
+  { name = "indicator", type = "utf8", required = true, description = "Confirmation indicator type" },
+  { name = "parameters", type = "table", required = true, description = "Indicator-specific parameters" },
+  { name = "threshold", type = "float64", required = true, description = "Comparison threshold value" },
+  { name = "comparator", type = "utf8", required = true, values = [">", "<", "==", ">=", "<=", "crosses_above", "crosses_below"], description = "Comparison operator" },
+]
+
+[exit_rules]
+description = "Exit rule definitions: stop_loss, take_profit, trailing"
+
+[exit_rules.stop_loss]
+description = "Stop loss configuration"
+fields = [
+  { name = "type", type = "utf8", required = true, values = ["fixed_pips", "atr_multiple", "percentage"], description = "Stop loss calculation method" },
+  { name = "value", type = "float64", required = true, min = 0, description = "Stop loss value (pips, multiplier, or percentage)" },
+]
+
+[exit_rules.take_profit]
+description = "Take profit configuration"
+fields = [
+  { name = "type", type = "utf8", required = true, values = ["fixed_pips", "atr_multiple", "percentage", "risk_reward"], description = "Take profit calculation method" },
+  { name = "value", type = "float64", required = true, min = 0, description = "Take profit value" },
+]
+
+[exit_rules.trailing]
+description = "Optional trailing stop configuration"
+required = false
+fields = [
+  { name = "type", type = "utf8", required = true, values = ["trailing_stop", "chandelier"], description = "Trailing stop type" },
+  { name = "params", type = "table", required = true, description = "Type-specific trailing parameters" },
+]
+
+[exit_rules.trailing.trailing_stop_params]
+description = "Parameters when trailing type = trailing_stop"
+fields = [
+  { name = "distance_pips", type = "float64", required = true, min = 0, description = "Trailing distance in pips" },
+]
+
+[exit_rules.trailing.chandelier_params]
+description = "Parameters when trailing type = chandelier"
+fields = [
+  { name = "atr_period", type = "int64", required = true, min = 1, description = "ATR lookback period" },
+  { name = "atr_multiplier", type = "float64", required = true, min = 0, description = "ATR multiplier for chandelier distance" },
+]
+
+[position_sizing]
+description = "Position sizing method and constraints (FR12)"
+fields = [
+  { name = "method", type = "utf8", required = true, values = ["fixed_risk", "fixed_lots"], description = "Sizing method" },
+  { name = "risk_percent", type = "float64", required = true, min = 0.1, max = 10.0, description = "Risk per trade as percentage of account" },
+  { name = "max_lots", type = "float64", required = true, min = 0.01, max = 100.0, description = "Maximum lot size cap" },
+]
+
+[optimization_plan]
+description = "Parameter optimization configuration (FR24, D10 taxonomy)"
+# Schema version 2: flat parameter registry replaces staged parameter_groups.
+# Each parameter declares its type (continuous/integer/categorical), bounds,
+# and optional condition for conditional activation.
+# Supports deeply nested conditional chains (e.g., exit_type -> trailing_method -> chandelier -> atr_period).
+# The optimizer owns grouping/staging/search policy internally (D3 opaque optimizer).
+
+[optimization_plan.schema_version]
+description = "Schema version (must be 2 for flat parameter format)"
+type = "int64"
+required = true
+value = 2
+
+[optimization_plan.parameters]
+description = "Flat registry of searchable parameters keyed by component-prefixed name"
+# Each parameter is a table with fields depending on type.
+# Parameter types follow D10 taxonomy: continuous, integer, categorical.
+
+[optimization_plan.parameters.fields]
+description = "Per-parameter fields"
+fields = [
+  { name = "type", type = "utf8", required = true, values = ["continuous", "integer", "categorical"], description = "Parameter type from D10 taxonomy" },
+  { name = "min", type = "float64", required = false, description = "Minimum value (required for continuous/integer, must be < max)" },
+  { name = "max", type = "float64", required = false, description = "Maximum value (required for continuous/integer, must be > min)" },
+  { name = "step", type = "float64", required = false, description = "Optional step size for integer display rounding (must be > 0)" },
+  { name = "choices", type = "array_utf8", required = false, description = "Valid choices (required for categorical, must have >= 2 entries)" },
+  { name = "condition", type = "table", required = false, description = "Optional conditional activation (parent categorical + value)" },
+]
+
+[optimization_plan.parameters.condition_fields]
+description = "Fields for conditional activation of a parameter"
+fields = [
+  { name = "parent", type = "utf8", required = true, description = "Parent categorical parameter name (must exist in parameters)" },
+  { name = "value", type = "utf8", required = true, description = "Parent choice value that activates this parameter" },
+]
+
+[optimization_plan.objective_function]
+description = "Optimization objective"
+type = "utf8"
+required = true
+values = ["sharpe", "calmar", "profit_factor", "expectancy"]
+
+[cost_model_reference]
+description = "Reference to versioned cost model artifact (D13, FR12)"
+fields = [
+  { name = "version", type = "utf8", required = true, pattern = "v\\d{3}", description = "Cost model version (e.g., v001)" },
+]

@@ -1,0 +1,204 @@
+﻿Quantitative Framework for Candidate Selection, Equity Curve Quality Analysis, and Multi-Objective Ranking in Algorithmic Trading
+The transition from the optimization of trading strategies to the selection of viable candidates for live deployment represents one of the most significant challenges in systematic finance. When a genetic algorithm or a Bayesian optimizer generates thousands of potentially profitable parameter sets, the researcher is faced with a paradox of choice: the "best" candidate in a backtest is frequently the most overfitted. Traditional performance metrics, such as the Sharpe Ratio, are often inadequate for distinguishing between genuine market edges and statistical noise, particularly when the strategy has been subjected to multiple trials. A robust framework for candidate selection must therefore prioritize equity curve "smoothness," parameter space stability, and population diversity through principled mathematical methodologies. This report establishes an exhaustive protocol for clustering, ranking, and selecting candidates, integrating advanced metrics of downside stress, multi-objective optimization theory, and density-based clustering to ensure that the final candidates for forward-testing possess both statistical robustness and structural reliability.
+Theoretical Foundations of Equity Curve Quality
+The quality of an equity curve is defined by its consistency, its resilience to market shocks, and its predictability. In the professional domain, return-to-risk ratios are considered necessary but insufficient. The primary objective is to identify strategies that exhibit "serenity"—a steady, linear growth path with minimal and short-lived drawdowns. This is particularly critical in institutional settings where the psychological and operational capacity to endure capital impairment is a finite resource. Practitioners increasingly move beyond the Sharpe Ratio, which treats all volatility as risk, toward metrics that specifically penalize the duration and depth of "underwater" periods.
+The Ulcer Index: A Multi-Dimensional Metric of Downside Stress
+The Ulcer Index (UI) is a sophisticated indicator of downside risk that surpasses conventional volatility measures by accounting for both the amplitude and the longevity of drawdowns.1 While standard deviation measures price swing amplitude without regard for direction or recovery time, the Ulcer Index serves as a "pain barometer" for the investor, focusing specifically on the stress caused by declining investment value.1
+The mathematical mechanism of the Ulcer Index involves the quadratic mean of percentage drawdowns over a specific lookback period, typically ranging from 14 to 30 periods.1 By squaring the drawdown values, the index applies a non-linear penalty to larger declines, reflecting the reality that a 20% drawdown is significantly more than twice as damaging as a 10% drawdown in terms of both capital recovery requirements and investor psychology.1
+  
+
+Where    represents the percentage drawdown from the previous peak at time   . This calculation effectively encapsulates two critical factors: the severity of price drops and the duration required for an asset to rebound to its pinnacle levels.1 A low Ulcer Index indicates stability, characterized by shallow or rapidly recovered price dips, whereas high values signal prolonged and stressful price declines.1
+
+
+Metric Attribute
+	Ulcer Index Significance
+	Focus
+	Exclusively downside risk; ignores "positive" volatility.1
+	Stress Factor
+	Quantifies depth and duration of recovery simultaneously.1
+	Sensitivity
+	Non-linear weighting of large drawdowns (quadratic mean).2
+	Short-Sample Robustness
+	Highly informative for curves with 200-500 trades; captures "underwater" time.4
+	Trade Frequency
+	Robust across intraday and swing horizons; emphasizes persistent losses.1
+	In the context of the CV-inside-objective, which already penalizes variance, the Ulcer Index provides an additional layer of protection by identifying "tail risk" in the recovery process. A strategy may have low overall return variance but still be prone to "stuck" drawdowns that the standard deviation fails to isolate.3
+The K-Ratio: Measuring the Consistency of the Growth Trend
+While the Ulcer Index measures the "pain" of the troughs, the K-Ratio measures the "quality" of the peaks. Created by Lars Kestner in 1996 and subsequently refined, the K-Ratio evaluates the consistency and sustainability of returns over time by analyzing the slope of the cumulative equity curve.7 It is essentially a valuation ratio that considers the order in which returns are generated, rather than just the aggregate sum.9
+The K-Ratio is calculated by performing a linear regression on the cumulative return data. The slope of the resulting regression line represents the average growth rate of the equity. This slope is then divided by the standard error of the slope, which serves as a proxy for volatility and irregularity in the growth path.7
+  
+
+A high K-Ratio indicates that the returns are stable and predictable, following a near-linear upward trend.7 Conversely, a lower K-Ratio signals jagged performance and greater fluctuations, suggesting that the "growth" may be the result of a few lucky trades rather than a consistent edge.10 For intraday forex and swing trading, the K-Ratio is particularly valuable as it separates investments that cycle reliably through different market conditions from those that produce only "paper profits" susceptible to rapid reversal.10
+The Serenity Ratio and the Pitfall Indicator
+The Serenity Ratio represents an evolution of risk-adjusted performance measurement, explicitly designed to find better historically performing funds by accounting for extreme risk and the tendency to remain in a drawdown.3 It improves upon the Sharpe Ratio by replacing annualized volatility with a composite risk measure: the product of the Ulcer Index and a Pitfall Indicator (PI).3
+The Pitfall Indicator is a coefficient that measures the magnitude or depth of extreme drawdowns, calculated as the ratio of the Conditional Drawdown at Risk (CDaR) to volatility.3 The combination of these two metrics results in "Penalized Risk," which ensures that strategies with deep "tails" or slow recovery paths are heavily penalized.3
+
+
+Metric
+	Calculation / Risk Focus
+	Portfolio Impact
+	Sharpe Ratio
+	Return / Volatility (Standard Deviation).6
+	Penalizes all volatility; may miss drawdown persistence.3
+	Sortino Ratio
+	Return / Downside Deviation.2
+	Focuses only on negative returns; ignores drawdown duration.10
+	Serenity Ratio
+	Return / (Ulcer Index * Pitfall Indicator).3
+	Outperformed Sharpe by 50% in empirical hedge fund tests.3
+	The Serenity Ratio's ability to relax penalties on upward deviations while strictly enforcing a penalty for "extreme" drawdown tendencies makes it an ideal candidate for the final ranking stage.3
+Advanced Multi-Objective Ranking Frameworks
+Selecting the optimal trading candidate from a pool of thousands is fundamentally a multi-objective problem. The operator must balance the CV-objective score (mean performance across folds), equity curve quality (Ulcer Index, K-Ratio), and parameter stability (sensitivity to minor setting changes).
+Pareto Frontiers and Non-Dominated Sorting
+In a multi-objective environment, there is rarely a single "best" solution that maximizes all criteria simultaneously. Improvements in return often necessitate compromises in risk.14 The Pareto principle identifies solutions that are "non-dominated," meaning no single objective can be improved without worsening at least one other objective.14
+For a population of 10,000 candidates, the NSGA-II (Non-dominated Sorting Genetic Algorithm II) methodology is highly effective. It sorts candidates into "frontiers." The first frontier contains candidates that are not dominated by any other solution in the population.14 By selecting candidates from the first or second Pareto frontiers, the researcher is guaranteed to be choosing solutions that represent the optimal trade-offs available in the current optimization run.15
+Lexicographic Ranking and Hierarchical Filters
+While Pareto optimization is mathematically elegant, professional trading environments often require strict adherence to priority orderings. Lexicographic ranking treats objectives as a sequence: the first objective is optimized, and subsequent objectives are only considered to break ties or within a small epsilon of the top performers.16
+A recommended ranking framework for the selection of 5-20 final candidates utilizes a hierarchical "funnel" approach:
+1. Statistical Gates (Hard Constraints): Candidates must pass the Deflated Sharpe Ratio (DSR) and Probability of Backtest Overfitting (PBO) thresholds to ensure they are not simply artifacts of multiple testing.17
+2. Performance Ranking: Survivors are ranked by their CV-objective score (mean - lambda * std across folds).17
+3. Quality Ranking: Within the top-performing group, candidates are re-ranked using the Serenity Ratio or Ulcer Index to prioritize "smooth" candidates.3
+4. Stability Pass: Candidates in the final shortlist are checked for parameter stability; those in "narrow peaks" (where a 1% change in parameters leads to failure) are discarded.17
+This sequential approach combines the rigor of statistical testing with the practical necessity of selecting candidates that are easy to manage and "serene" in their performance.3
+Scalarization and Weighted Combinations
+Scalarization involves aggregating multiple objectives into a single value using user-specified weights.14 While straightforward, this method can be sensitive to the choice of weights and may fail to identify solutions in non-convex regions of the objective space.21 However, as a final comparison tool for the operator, a "Composite Quality Score" can be calculated:
+  
+
+This provides a clear, explainable ranking that can be presented in a leaderboard format, provided the weights are rooted in the firm's specific risk tolerance.14
+Parameter Space Clustering and Distinct Group Identification
+Requirement FR26 specifies the need to cluster similar parameter sets into distinct groups. This prevents the selection of 20 candidates that are essentially identical variations of the same overfitted strategy. Clustering allows the operator to select the single best "representative" from each unique region of profitability.
+Gower Distance for Mixed Data Types
+Trading parameters are rarely uniform; they consist of continuous values (e.g., multiplier levels), integers (e.g., window sizes), and categorical/binary choices (e.g., choice of filter or exit logic).17 Traditional Euclidean distance is mathematically invalid for mixed-type datasets, as it cannot handle non-numeric categorical variables.23
+Gower Distance solves this by calculating a specific distance metric for each variable type and combining them into a unified distance matrix.23
+* Numerical Features: Distance is calculated as the absolute difference divided by the range.23
+* Categorical Features: Distance is binary (0 if identical, 1 if different).24
+* Ordinal Features: Ranked and then treated as normalized continuous values.23
+This allows for a rigorous calculation of similarity across high-dimensional parameter vectors, ensuring that clusters represent truly "distinct" strategies.24
+Clustering Algorithms: HDBSCAN and PAM
+For 10,000 to 100,000 candidates, density-based clustering is often superior to centroid-based methods like k-means. K-means requires the user to specify the number of clusters (k) in advance and assumes spherical cluster shapes, which rarely occur in complex parameter spaces.23
+HDBSCAN (Hierarchical Density-Based Spatial Clustering of Applications with Noise) is the recommended algorithm for this task.28 It operates by transforming the space according to density, building a minimum spanning tree, and extracting clusters based on their stability across different density thresholds.29
+* Noise Handling: HDBSCAN can explicitly identify and ignore "noise"—candidates that do not belong to any stable cluster.28
+* Hierarchical Nature: It can find clusters of varying densities and shapes, which is critical for identifying "islands" of profitability in a parameter landscape.28
+* Scalability: While memory can be a concern with very large    distance matrices, HDBSCAN can be implemented with    complexity using space-partitioning trees, making it feasible for 100k samples on modern hardware.25
+PAM (Partitioning Around Medoids) is a robust alternative for smaller subsets or for final cluster refinement.23 Unlike k-means, which uses a calculated mean (centroid), PAM selects an actual observation from the dataset (the medoid) to represent the cluster center.23 This is particularly useful for strategy selection, as the medoid itself is a valid, tradable candidate that can be presented to the operator as the "ideal" representative of that cluster.23
+Cluster Representative Selection and Visualization
+Once clusters are identified, the system must present them in a meaningful way. Selecting the "best" candidate per cluster (based on the ranking framework) ensures diversity in the forward-test pool.17
+Visualization is achieved through dimensionality reduction techniques like t-SNE (t-Distributed Stochastic Neighbor Embedding) or UMAP (Uniform Manifold Approximation and Projection).23 These algorithms project the high-dimensional Gower distance matrix into a 2D or 3D scatter plot where similar strategies are grouped together visually.23 This allows the operator to see "islands" of performance and identify whether the optimizer has found multiple independent ways to trade or has simply converged on a single, narrow peak.23
+
+
+Feature
+	Clustering Recommendation
+	Algorithm
+	HDBSCAN for initial discovery; PAM for representative selection.23
+	Distance Metric
+	Gower Distance (to handle mixed parameter types).23
+	Cluster Count
+	Automatically determined by HDBSCAN stability; target 3-7 for operator review.17
+	Representative
+	The "Medoid" (PAM) or the highest-ranked candidate (by Serenity Ratio) within the cluster.17
+	Visualization
+	UMAP projection with candidates colored by cluster and sized by quality metric.23
+	Diversity Archive Design and Quality-Diversity (QD) Algorithms
+Maintaining population diversity during the optimization process is more efficient than filtering for diversity after the fact. Quality-Diversity (QD) algorithms, such as MAP-Elites, are designed to find many high-performing points that all behave differently.30
+MAP-Elites: The Multi-Dimensional Archive of Phenotypic Elites
+MAP-Elites partitions the search space into a multi-dimensional grid, where each axis represents a "behavioral characteristic" (BC) or phenotypic trait.31 Every cell in the grid stores only the best candidate (the elite) that exhibits that specific combination of behaviors.33
+In algorithmic trading, this approach prevents the population from collapsing into a single region of the parameter space.32 Instead, the optimizer is forced to find the best way to be a "high-frequency breakout strategy," the best way to be a "low-frequency mean reversion strategy," and so on.31
+Recommended Behavioral Dimensions for Trading
+The choice of behavioral dimensions defines the diversity of the archive.32 For trading strategies, these should represent the strategy's "fingerprint" in the market:
+   1. Trade Frequency: Number of trades per unit of time (e.g., daily or monthly). This separates high-turnover scalping from long-term swing trading.37
+   2. Average Holding Time: The duration from entry to exit. This captures the strategy's sensitivity to market noise vs. structural trends.33
+   3. Win Rate / Payoff Ratio: These dimensions define the "nature" of the profitability (e.g., many small wins vs. rare large gains).2
+   4. Market Exposure: Percentage of time the strategy is in an active position. This reflects the strategy's risk profile and opportunistic nature.2
+By maintaining an archive across these dimensions, the system ensures that the forward-test pool is not just statistically diverse but behaviorally diverse, providing a natural hedge against regime change.32
+Evolution Strategies and Archiving
+To scale MAP-Elites to deep neuroevolution or strategies with hundreds of parameters, it is recommended to integrate Evolution Strategies (ES) such as CMA-ES.32 The hybrid CMA-ME (CMA-ES for MAP-Elites) uses multiple "improvement emitters" to efficiently explore the behavioral grid and find the highest-quality elites for each niche.34
+Selection Protocol for Forward-Test Candidates
+The final deliverable is a selection protocol that reduces 10,000-100,000 candidates to a manageable shortlist of 5-20 candidates for walk-forward validation (FR28).
+Managing the Multiple Testing Problem
+Evaluating thousands of strategies on the same dataset inevitably leads to "selection bias" or "multiple testing bias".18 The more tests performed, the more likely a random "god-tier" equity curve will appear.41
+To mitigate this, the selection protocol must use the Deflated Sharpe Ratio (DSR) as the primary gate.18 DSR corrects for the number of trials by taking the variance, skewness, and kurtosis of the trial returns into account, establishing a theoretical "maximum expected Sharpe" for a series of related trials.18 If a candidate's Sharpe Ratio is not significantly higher than this adjusted threshold, it is discarded as a probable false positive.19
+The Recommended Selection Protocol
+The following protocol integrates the research findings into a repeatable process:
+
+
+Stage
+	Action
+	Methodology
+	1. Filtering
+	Gate survivors.19
+	Candidates must pass DSR > 1.5 and PBO < 0.1 thresholds.17
+	2. Clustering
+	Partition the survivors.23
+	Use Gower Distance and HDBSCAN to find 3-7 distinct groups of survivors.17
+	3. Ranking
+	Intra-cluster selection.17
+	Within each cluster, rank survivors using the Serenity Ratio (primary) and K-Ratio (secondary).3
+	4. Selection
+	Choose final candidates.43
+	Select the top 2-3 representatives from each cluster to proceed to walk-forward validation (Total: 5-20).17
+	5. Reporting
+	Generate Evidence Packs.17
+	Include UMAP visualization of cluster membership and "underwater" plots for each selection.23
+	This protocol ensures that the candidates selected for forward-testing are statistically robust (DSR), behaviorally diverse (Clustering), and structurally "serene" (Serenity Ratio).3
+Python Library Ecosystem and Computational Implementation
+The implementation of this framework requires the integration of several specialized libraries that handle multi-objective optimization, mixed-data clustering, and quality-diversity archiving.
+   * Optimization and Ranking: pymoo is the premier library for multi-objective optimization in Python.45 It provides built-in implementations of NSGA-II and tools for lexicographic sorting and Pareto ranking.45
+   * Distance and Clustering:
+   * gower: A specialized library for calculating Gower distance matrices on mixed-type pandas DataFrames.24
+   * hdbscan: The standard Python implementation for density-based hierarchical clustering, which supports precomputed distance matrices.29
+   * scikit-learn: Essential for dimensionality reduction (t-SNE/UMAP) and partitioning around medoids (PAM) via sklearn_extra.23
+   * Quality-Diversity (MAP-Elites):
+   * pyribs: A library dedicated to Quality-Diversity algorithms, providing clean implementations of MAP-Elites and CMA-ME.34
+   * fcmaes: A high-performance library that integrates evolution strategies with MAP-Elites, specifically designed for rugged landscapes and parallel evaluation on many-core CPUs.39
+   * Performance Evaluation:
+   * quantstats or empyrical: Libraries that provide vectorized calculations of the Ulcer Index, Sharpe, Sortino, and Calmar ratios.2
+Conclusion and Strategic Implications
+The selection of trading candidates is not merely a matter of finding the highest return, but of identifying the most robust and consistent expressions of a market edge. By elevating equity curve "smoothness"—quantified through the Ulcer Index and K-Ratio—to a first-class selection criterion, the research pipeline prioritizes strategies that are structurally sound and psychologically manageable in live environments.
+The multi-objective ranking framework, anchored by lexicographic gates like DSR and PBO, provides a rigorous defense against the multiple testing bias that plagues large-scale optimization. When combined with density-based clustering using Gower distance, the system effectively compresses a population of thousands into a small, diverse, and representative set of "islands" of profitability. This ensures that the final 5-20 candidates subjected to walk-forward validation represent truly different behavioral phenotypes, maximizing the system's adaptability to future market regimes.
+Integrating these methodologies into a single framework—supported by high-performance Python libraries like pymoo, hdbscan, and pyribs—allows for a scalable, explainable, and scientifically defensible candidate selection protocol. The ultimate outcome is a selection process that moves beyond "peak backtest" toward the discovery of genuine, serene, and sustainable alpha.
+Works cited
+   1. Complete Guide to Trading with the Ulcer Index (2025), accessed on March 21, 2026, https://thetradinganalyst.com/ulcer-index/
+   2. Trading Performance: Strategy Metrics, Risk-Adjusted Metrics, And Backtest - QuantifiedStrategies.com, accessed on March 21, 2026, https://www.quantifiedstrategies.com/trading-performance/
+   3. Ulcer Index and Serenity Ratio: can they help ... - AlternativeSoft News, accessed on March 21, 2026, https://www.alternativesoft.com/ulcer-index-and-serenity-ratio-can-they-help-to-select-better-performers.html
+   4. Algo Trading Workshop 4: Trend Trading, Time Series. - Zorro Project, accessed on March 21, 2026, https://zorro-project.com/manual/en/tutorial_trade.htm
+   5. Fusion Analysis: Integrating Neurally Enhanced Fundamental Analysis, Technical Analysis and Corporate Governance in the Context of a Stock Market Trading System - VU Research Repository, accessed on March 21, 2026, https://vuir.vu.edu.au/25077/1/Safwan%20Mohd%20Nor.pdf
+   6. Sharpe Ratio Explained: Formula, Calculation in Excel & Python, and Examples, accessed on March 21, 2026, https://blog.quantinsti.com/sharpe-ratio-applications-algorithmic-trading/
+   7. What Is the K-Ratio and How Do You Calculate It? - Nasdaq, accessed on March 21, 2026, https://www.nasdaq.com/articles/what-k-ratio-and-how-do-you-calculate-it
+   8. K-Ratio - Overview, How To Calculate, Uses in Finance, accessed on March 21, 2026, https://corporatefinanceinstitute.com/resources/data-science/k-ratio/
+   9. 400+ Stock Market Terms | PDF | Stocks | Investing - Scribd, accessed on March 21, 2026, https://www.scribd.com/document/706222954/400-Stock-Market-Terms
+   10. K Ratio Defined (2025): Calculation, Pros, Cons, accessed on March 21, 2026, https://thetradinganalyst.com/k-ratio/
+   11. Sharpe Ratio for Algorithmic Trading Performance Measurement - QuantStart, accessed on March 21, 2026, https://www.quantstart.com/articles/Sharpe-Ratio-for-Algorithmic-Trading-Performance-Measurement/
+   12. Why are Sharpe ratios of high frequency trading strategies so large? - Quora, accessed on March 21, 2026, https://www.quora.com/Why-are-Sharpe-ratios-of-high-frequency-trading-strategies-so-large
+   13. Sharpe ratio | Forex Glossary - Afterprime, accessed on March 21, 2026, https://afterprime.com/glossary/sharpe-ratio
+   14. Mastering Trade-Offs: Balancing Competing Objectives in Multi-Objective Optimization, accessed on March 21, 2026, https://nag.com/insights/balancing-competing-objectives-in-multi-objective-optimization/
+   15. Multi-objective optimization - Wikipedia, accessed on March 21, 2026, https://en.wikipedia.org/wiki/Multi-objective_optimization
+   16. Multi-Objective Multi-Agent Path Finding with Lexicographic ... - arXiv, accessed on March 21, 2026, https://arxiv.org/abs/2510.07276
+   17. epic5-brief-5B-candidate-selection-equity-curve-quality.txt
+   18. quantstrat/vignettes/quantstrat-RFinance-2018.Rmd at master - GitHub, accessed on March 21, 2026, https://github.com/braverock/quantstrat/blob/master/vignettes/quantstrat-RFinance-2018.Rmd
+   19. The probability of backtest overfitting | Request PDF - ResearchGate, accessed on March 21, 2026, https://www.researchgate.net/publication/318600389_The_probability_of_backtest_overfitting
+   20. Tomorrow's Titans 2022 - The Hedge Fund Journal, accessed on March 21, 2026, https://thehedgefundjournal.com/wp-content/uploads/2022/08/THFJ-Tomorrows-Titans-2022-2.pdf
+   21. Scalarization versus Indicator-based Selection in Multi-Objective CMA Evolution Strategies - Christian Igel, accessed on March 21, 2026, https://christian-igel.github.io/paper/SvIbSiMoCMAES.pdf
+   22. Auto Strategy Builder - Monthly Subscription (NinjaTrader) - tradedevils-indicators, accessed on March 21, 2026, https://tradedevils-indicators.com/products/auto-strategy-builder
+   23. Clustering Mixed Data Types in R | Wicked Good Data, accessed on March 21, 2026, https://dpmartin42.github.io/posts/r/cluster-mixed-types
+   24. Understanding Gower Distance for Mixed Data Types in Machine Learning, accessed on March 21, 2026, https://rajithkalinda.medium.com/understanding-gower-distance-for-mixed-data-types-in-machine-learning-e90ad42d5684
+   25. Clustering a large dataset in python (sklearn) : r/datascience - Reddit, accessed on March 21, 2026, https://www.reddit.com/r/datascience/comments/gmx51a/clustering_a_large_dataset_in_python_sklearn/
+   26. I Was Wrong: Start Simple, Then Move to More Complex | by Charles Frenzel | Medium, accessed on March 21, 2026, https://charles-frenzel.medium.com/i-was-wrong-start-simple-then-move-to-more-complex-5e2f40765481
+   27. clustering with different types of variables - Kaggle, accessed on March 21, 2026, https://www.kaggle.com/discussions/questions-and-answers/544877
+   28. (PDF) A Hierarchical Density-Based Clustering Method Applied to Mixed-Mail in Austria, accessed on March 21, 2026, https://www.researchgate.net/publication/382004674_A_Hierarchical_Density-Based_Clustering_Method_Applied_to_Mixed-Mail_in_Austria
+   29. How HDBSCAN Works - Read the Docs, accessed on March 21, 2026, https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html
+   30. [2307.09326] BOP-Elites, a Bayesian Optimisation Approach to Quality Diversity Search with Black-Box descriptor functions - arXiv, accessed on March 21, 2026, https://arxiv.org/abs/2307.09326
+   31. Mapping Hearthstone Deck Spaces through MAP-Elites with Sliding Boundaries - CMAP, accessed on March 21, 2026, http://www.cmap.polytechnique.fr/~nikolaus.hansen/proceedings/2019/GECCO/proceedings/proceedings_files/pap334s3-file1.pdf
+   32. GECCO '20: Proceedings of the 2020 Genetic and Evolutionary Computation Conference - sigevo, accessed on March 21, 2026, http://www.sigevo.org/gecco-2020/toc.html
+   33. MAP-Elites with Transverse Assessment for Multimodal Problems in Creative Domains, accessed on March 21, 2026, https://arxiv.org/html/2403.07182v1
+   34. Dynamic Quality-Diversity Search - arXiv, accessed on March 21, 2026, https://arxiv.org/pdf/2404.05769?
+   35. (PDF) How do Different Encodings Influence the Performance of the MAP-Elites Algorithm?, accessed on March 21, 2026, https://www.researchgate.net/publication/305685637_How_do_Different_Encodings_Influence_the_Performance_of_the_MAP-Elites_Algorithm
+   36. Market Making With Signals Through Deep Reinforcement Learning - ResearchGate, accessed on March 21, 2026, https://www.researchgate.net/publication/351221061_Market_Making_With_Signals_Through_Deep_Reinforcement_Learning
+   37. On Data-Driven Log-Optimal Portfolio: A Sliding Window Approach ..., accessed on March 21, 2026, https://www.researchgate.net/publication/365690917_On_Data-Driven_Log-Optimal_Portfolio_A_Sliding_Window_Approach
+   38. Top 94 IEEE transactions on games papers published in 2022 - SciSpace, accessed on March 21, 2026, https://scispace.com/journals/ieee-transactions-on-games-1euknpok/2022
+   39. Diversity.adoc - dietmarwo/fast-cma-es - GitHub, accessed on March 21, 2026, https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
+   40. Can LLM-based Financial Investing Strategies Outperform the Market in Long Run? - arXiv, accessed on March 21, 2026, https://arxiv.org/html/2505.07078v3
+   41. Backtested 16000 retail trading strategies… how do you avoid fooling yourself? - Reddit, accessed on March 21, 2026, https://www.reddit.com/r/algotrading/comments/1q5op3l/backtested_16000_retail_trading_strategies_how_do/
+   42. Full article: What Is Quality? - Taylor & Francis, accessed on March 21, 2026, https://www.tandfonline.com/doi/full/10.1080/0015198X.2019.1567194
+   43. Validation set on Walk Forward Analysis - Quantitative Finance Stack Exchange, accessed on March 21, 2026, https://quant.stackexchange.com/questions/74272/validation-set-on-walk-forward-analysis
+   44. Can LLM-based Financial Investing Strategies Outperform the Market in Long Run? - arXiv, accessed on March 21, 2026, https://arxiv.org/html/2505.07078v4
+   45. An Intro to pymoo: Solving Optimization Problems - Kaggle, accessed on March 21, 2026, https://www.kaggle.com/code/shikachen/an-intro-to-pymoo-solving-optimization-problems

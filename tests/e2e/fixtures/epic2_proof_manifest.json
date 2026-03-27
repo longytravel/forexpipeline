@@ -1,0 +1,11 @@
+{
+  "spec_version": "v002",
+  "spec_hash": "4b152a8bbb40aea3c8b3e0f383da02912ecd6c1e23bb99e2fe7df56523da8fc2",
+  "cost_model_version": "v001",
+  "cost_model_pair": "EURUSD",
+  "schema_version": "1",
+  "config_hash": "448a83055e9d7ccf2793eb3e739024b8e7ddfae9cb6327fb12fd400f7486ad13",
+  "proof_timestamp": "2026-03-17T19:08:33Z",
+  "strategy_slug": "sma-crossover-eurusd-h1",
+  "test_results": "all_passed"
+}

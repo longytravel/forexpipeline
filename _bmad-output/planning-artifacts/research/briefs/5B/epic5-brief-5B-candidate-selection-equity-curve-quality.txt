@@ -1,0 +1,96 @@
+# Research Brief 5B: Candidate Selection, Equity Curve Quality Metrics & Multi-Objective Ranking
+
+## Context
+
+After optimization produces thousands of evaluated candidates (each with CV-objective scores across K folds), we need to:
+1. **Cluster** similar high-performing parameter sets into distinct groups (FR26)
+2. **Rank** candidates using principled methodology — not just "highest Sharpe" (FR27, FR28)
+3. **Select** forward-test candidates that are genuinely different from each other (FR28)
+
+The epic description explicitly states: **"Equity curve smoothness is a first-class selection criterion (specific metrics determined by research)."**
+
+**What we already know:**
+- DSR (Deflated Sharpe Ratio) is a primary gate — corrects for selection bias from multiple trials
+- PBO (Probability of Backtest Overfitting) via CSCV is a secondary gate
+- CV-inside-objective already biases toward robust candidates, but we still need post-optimization selection
+- The optimizer should maintain population diversity (from Brief 5A), giving us a diverse set to select from
+
+## Research Questions
+
+### 1. Equity Curve Quality Metrics
+What metrics do quant practitioners actually use to measure equity curve "quality" beyond return/risk ratios?
+
+Candidates to evaluate (not exhaustive — find what practitioners actually use):
+- **Ulcer Index** — measures depth and duration of drawdowns combined
+- **K-Ratio** (Kestner) — linear regression slope of equity curve divided by standard error; measures consistency of returns
+- **Equity Curve R-squared** — how well a straight line fits the equity curve; higher = more consistent
+- **Pain Index / Pain Ratio** — similar to Ulcer Index family
+- **Drawdown Duration Distribution** — maximum, average, and standard deviation of drawdown recovery times
+- **Calmar Ratio** — annualized return / max drawdown
+- **Omega Ratio** — probability-weighted ratio of gains to losses at a threshold
+- **Serenity Ratio** — combines Sharpe-like risk-adjustment with drawdown penalty
+- **Tail Ratio** — ratio of right tail to left tail of return distribution
+- **Gain-to-Pain Ratio** — sum of returns / sum of absolute negative returns
+
+For each metric:
+- What does it actually measure that other metrics don't?
+- How sensitive is it to trade frequency (matters for forex intraday vs. swing)?
+- Is it robust to short equity curves (we might have 200-500 trades)?
+- How does it interact with CV-inside-objective (which already penalizes variance)?
+
+### 2. Multi-Objective Ranking Framework
+Given a candidate has:
+- CV-objective score (mean - lambda * std across folds)
+- Individual fold scores (performance per market regime/period)
+- Equity curve quality metrics (from above)
+- Parameter stability indicators (from Brief 5C)
+
+How should we combine these into a ranking?
+
+Options to evaluate:
+- **Pareto frontier** — non-dominated sorting (NSGA-II style) across 2-3 objectives
+- **Scalarization** — weighted combination into single score (with what weights?)
+- **Lexicographic** — hard gates first (DSR pass? PBO pass?), then rank survivors
+- **Tournament selection** — pairwise comparison across objectives
+- **Hierarchical filtering** — funnel approach: gates -> clustering -> ranking within clusters
+
+What do quant firms and academic literature recommend for strategy selection specifically?
+
+### 3. Parameter Space Clustering
+After optimization, we need to present "distinct groups" not thousands of near-identical parameter sets (FR26).
+
+Questions:
+- **Clustering algorithm**: DBSCAN, OPTICS, HDBSCAN, k-means, or spectral clustering? Which handles mixed parameter types (continuous + categorical)?
+- **Distance metric**: How to compute distance between parameter vectors that include categorical and conditional parameters?
+- **Cluster count**: Automatic determination vs. operator-specified? How many clusters is useful for operator review (3-7 seems reasonable)?
+- **Cluster representative selection**: Best candidate per cluster? Centroid (if meaningful)? Multiple per cluster?
+- **Visualization**: How to present clusters to the operator in a meaningful way (parameter heatmaps, parallel coordinates, t-SNE/UMAP)?
+
+### 4. Diversity Archive Design
+Should we maintain an explicit diversity archive during optimization (MAP-Elites style) or only cluster post-hoc?
+
+- **MAP-Elites / Quality-Diversity**: Maintains a grid of best-performing solutions across behavioral dimensions. What should the behavioral dimensions be for trading strategies? (e.g., trade frequency, avg holding time, win rate, max drawdown)
+- **Diversity preservation in population**: Niching, fitness sharing, or crowding distance?
+- **Trade-off**: Diversity archive = more compute but guarantees diverse candidates. Post-hoc clustering = cheaper but might miss interesting regions if optimizer converged.
+
+### 5. Forward-Test Candidate Selection (FR28)
+Given clustered, ranked candidates, how many should proceed to walk-forward validation?
+- What's the right number? (Too few = miss good candidates, too many = compute waste)
+- Should selection be deterministic or include a "wild card" element?
+- How to handle the multiple-testing problem at the selection stage (we've already done DSR, but selecting K candidates from N introduces another layer)
+
+## Deliverable Expected
+
+1. **Recommended equity curve quality metrics** (2-3 primary, with formulas and interpretation)
+2. **Ranking framework** with clear methodology
+3. **Clustering approach** with algorithm, distance metric, and cluster count strategy
+4. **Diversity archive recommendation** (yes/no, and if yes, behavioral dimensions)
+5. **Selection protocol** for forward-test candidates
+6. **Python libraries** that implement these (if any — scikit-learn, pymoo, etc.)
+
+## Constraints
+- Must work with 10K-100K candidates from optimization
+- Must handle mixed parameter types (continuous, integer, categorical, conditional)
+- Must be explainable to the operator (not a black box ranking)
+- Must produce a manageable number of candidates for validation (5-20 range)
+- Must integrate with the evidence pack system (operator sees why each candidate was selected)

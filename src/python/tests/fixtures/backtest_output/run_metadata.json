@@ -1,0 +1,6 @@
+{
+  "config_hash": "sha256:abc123def456",
+  "binary_version": "0.1.0",
+  "timestamp": "2025-01-02T08:00:00Z",
+  "strategy_id": "ma_crossover_v001"
+}

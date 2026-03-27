@@ -1,0 +1,28 @@
+# Strategy defaults configuration (D7 — config keys live in config/)
+# Used by intent capture to fill non-identity fields when operator omits them.
+# Each default includes value and rationale for provenance transparency.
+
+[defaults.pair]
+value = "EURUSD"
+rationale = "MVP scope single pair"
+
+[defaults.timeframe]
+value = "H1"
+rationale = "MVP scope primary analysis timeframe"
+
+[defaults.position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 1.0
+rationale = "Conservative 1% risk per trade with 1 lot cap"
+
+[defaults.exits.stop_loss]
+type = "atr_multiple"
+value = 2.0
+atr_period = 14
+rationale = "ATR(14) x2 provides adaptive volatility-based stop"
+
+[defaults.exits.take_profit]
+type = "risk_reward"
+value = 2.0
+rationale = "2:1 reward-to-risk ratio"

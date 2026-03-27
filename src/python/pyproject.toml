@@ -1,0 +1,41 @@
+[project]
+name = "forex-pipeline"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "dukascopy-python>=4.0.1",
+  "pandas>=2.0",
+  "pyarrow>=14.0",
+  "cmaes>=0.10.0",
+  "nevergrad>=1.0.0",
+  "scipy>=1.11.0",
+  "numpy>=1.24.0",
+  "hdbscan>=0.8.33",
+  "gower>=0.1.2",
+  "umap-learn>=0.5.5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+  "live: tests that hit real external APIs (Dukascopy). Run with: pytest -m live",
+  "regression: tests added by review synthesis to prevent recurrence of fixed bugs",
+]

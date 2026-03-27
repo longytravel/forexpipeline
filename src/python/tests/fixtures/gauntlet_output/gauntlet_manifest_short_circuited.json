@@ -1,0 +1,32 @@
+{
+  "candidate_id": 4,
+  "optimization_run_id": "opt_20260322_abc123",
+  "strategy_id": "ma_crossover",
+  "total_optimization_trials": 5000,
+  "candidate_rank": 8,
+  "dataset_hash": "abc123",
+  "strategy_spec_hash": "def456",
+  "config_hash": "ghi789",
+  "validation_config_hash": "sha256:jkl012",
+  "research_brief_versions": {"5A": "v1", "5B": "v1", "5C": "v1"},
+  "gate_results": {
+    "pbo_value": 0.65,
+    "pbo_passed": false,
+    "dsr_passed": true,
+    "dsr_value": 1.20,
+    "short_circuited": true,
+    "hard_gate_failures": ["pbo_threshold"]
+  },
+  "per_stage_metric_ids": {
+    "walk_forward": "wf_metrics_cand4",
+    "cpcv": "cpcv_metrics_cand4"
+  },
+  "per_stage_summaries": {
+    "walk_forward": {"median_oos_sharpe": 0.25, "window_count": 10, "negative_windows": 5},
+    "cpcv": {"pbo": 0.65, "mean_oos_sharpe": 0.30, "combination_count": 45}
+  },
+  "chart_data_refs": {
+    "equity_curves": "artifacts/ma_crossover/v001/validation/equity-curves-cand4.arrow",
+    "walk_forward_windows": "artifacts/ma_crossover/v001/validation/wf-windows-cand4.arrow"
+  }
+}

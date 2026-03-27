@@ -1,0 +1,116 @@
+# generated: 2026-03-14
+# last_updated: 2026-03-23
+# project: Forex Pipeline
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-03-14
+last_updated: 2026-03-23
+# last_action: Story 5-7 E2E pipeline proof optimization validation implementation complete (review)
+project: Forex Pipeline
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Market Data Pipeline & Project Foundation
+  epic-1: done
+  1-1-claudebacktester-data-pipeline-review: done
+  1-2-external-data-quality-acquisition-research: done
+  1-3-project-structure-config-logging-foundation: done
+  1-4-dukascopy-data-download: done
+  1-5-data-validation-quality-scoring: done
+  1-6-parquet-storage-arrow-ipc-conversion: done
+  1-7-timeframe-conversion: done
+  1-8-data-splitting-consistent-sourcing: done
+  1-9-e2e-pipeline-proof-market-data-flow: done
+  1-10-epic1-pir-remediation: done
+  epic-1-retrospective: optional
+
+  # Epic 2: Strategy Definition & Cost Model
+  epic-2: done
+  2-1-claudebacktester-strategy-evaluator-review: done
+  2-2-strategy-definition-format-cost-modeling-research: done
+  2-3-strategy-specification-schema-contracts: done
+  2-4-strategy-intent-capture-dialogue-to-specification: done
+  2-5-strategy-review-confirmation-versioning: done
+  2-6-execution-cost-model-session-aware-artifact: done
+  2-7-cost-model-rust-crate: done
+  2-8-strategy-engine-crate-specification-parser-indicator-registry: done
+  2-9-e2e-pipeline-proof-strategy-definition-cost-model: done
+  epic-2-retrospective: optional
+
+  # Epic 3: Backtesting & Pipeline Operations
+  epic-3: done
+  3-1-claudebacktester-backtest-engine-review: done
+  3-2-python-rust-ipc-deterministic-backtesting-research: done
+  3-3-pipeline-state-machine-checkpoint-infrastructure: done
+  3-4-python-rust-bridge-batch-evaluation-dispatch: done
+  3-5-rust-backtester-crate-trade-simulation-engine: done
+  3-6-backtest-results-artifact-storage-sqlite-ingest: done
+  3-7-ai-analysis-layer-narrative-anomaly-detection-evidence-packs: done
+  3-8-operator-pipeline-skills-dialogue-control-stage-management: done
+  3-9-e2e-pipeline-proof-backtesting-pipeline-operations: done
+  epic-3-retrospective: optional
+
+  # Epic 4: Pipeline Dashboard & Visualization
+  epic-4: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Optimization & Validation Gauntlet
+  epic-5: done
+  5-1-claudebacktester-optimizer-validation-pipeline-review: done
+  5-2-optimization-algorithm-candidate-selection-validation-gauntlet-research: done
+  5-2b-optimization-search-space-schema-range-proposal: done
+  5-3-python-optimization-orchestrator: done
+  5-4-validation-gauntlet: done
+  5-5-confidence-scoring-evidence-packs: done
+  5-6-advanced-candidate-selection-clustering-diversity: done
+  5-7-e2e-pipeline-proof-optimization-validation: done
+  epic-5-retrospective: optional
+
+  # Epic 6: Practice Deployment & Live Operations
+  epic-6: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Reconciliation & Pipeline Fidelity Proof
+  epic-7: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Iteration & Strategy Lifecycle (Growth)
+  epic-8: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Portfolio Operations (Vision)
+  epic-9: backlog
+  epic-9-retrospective: optional

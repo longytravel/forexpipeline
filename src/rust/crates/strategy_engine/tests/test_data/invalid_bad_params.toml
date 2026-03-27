@@ -1,0 +1,40 @@
+# Invalid: out-of-range params (period=0, step=0, multiplier=-1.0)
+# Note: period is u32 in TOML (non-negative integer), so we test boundary value 0
+
+[metadata]
+schema_version = "1"
+name = "bad-params"
+version = "v001"
+pair = "EURUSD"
+timeframe = "H1"
+created_by = "test-fixture"
+
+[[entry_rules.conditions]]
+indicator = "sma"
+threshold = 0.0
+comparator = ">"
+[entry_rules.conditions.parameters]
+period = 0
+
+[exit_rules.stop_loss]
+type = "fixed_pips"
+value = 30.0
+
+[position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 1.0
+
+[[optimization_plan.parameter_groups]]
+name = "entry"
+parameters = ["sma_period"]
+[optimization_plan.parameter_groups.ranges.sma_period]
+min = 5.0
+max = 50.0
+step = 0.0
+
+[optimization_plan]
+objective_function = "sharpe"
+
+[cost_model_reference]
+version = "v001"

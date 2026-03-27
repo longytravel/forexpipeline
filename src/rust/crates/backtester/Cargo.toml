@@ -1,0 +1,33 @@
+[package]
+name = "backtester"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "backtester"
+path = "src/lib.rs"
+
+[dependencies]
+arrow = { version = "53", features = ["ipc"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+ctrlc = { version = "3", features = ["termination"] }
+rayon = "1.10"
+lru = "0.12"
+common = { path = "../common" }
+cost_model = { path = "../cost_model" }
+strategy_engine = { path = "../strategy_engine" }
+
+[dev-dependencies]
+tempfile = "3"
+toml = "0.8"
+
+[[bin]]
+name = "forex_backtester"
+path = "src/bin/forex_backtester.rs"
+
+[[bin]]
+name = "forex_worker"
+path = "src/bin/forex_worker.rs"

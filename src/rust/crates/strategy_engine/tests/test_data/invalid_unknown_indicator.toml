@@ -1,0 +1,40 @@
+# Invalid: references indicator "supertrend" which is not in V1 registry
+
+[metadata]
+schema_version = "1"
+name = "bad-indicator"
+version = "v001"
+pair = "EURUSD"
+timeframe = "H1"
+created_by = "test-fixture"
+
+[[entry_rules.conditions]]
+indicator = "supertrend"
+threshold = 0.0
+comparator = ">"
+[entry_rules.conditions.parameters]
+period = 14
+multiplier = 3.0
+
+[exit_rules.stop_loss]
+type = "fixed_pips"
+value = 30.0
+
+[position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 1.0
+
+[[optimization_plan.parameter_groups]]
+name = "entry"
+parameters = ["period"]
+[optimization_plan.parameter_groups.ranges.period]
+min = 5.0
+max = 50.0
+step = 5.0
+
+[optimization_plan]
+objective_function = "sharpe"
+
+[cost_model_reference]
+version = "v001"

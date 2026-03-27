@@ -1,0 +1,176 @@
+[market_data]
+description = "M1 bar data with session and quarantine columns. Aggregated timeframes (D1, W) use 'mixed' session."
+columns = [
+  { name = "timestamp", type = "int64", nullable = false, description = "Epoch microseconds UTC" },
+  { name = "open", type = "float64", nullable = false },
+  { name = "high", type = "float64", nullable = false },
+  { name = "low", type = "float64", nullable = false },
+  { name = "close", type = "float64", nullable = false },
+  { name = "bid", type = "float64", nullable = false },
+  { name = "ask", type = "float64", nullable = false },
+  { name = "session", type = "utf8", nullable = false, values = ["asian", "london", "new_york", "london_ny_overlap", "off_hours", "mixed"] },
+  { name = "quarantined", type = "bool", nullable = false, default = false },
+]
+
+[tick_data]
+description = "Individual bid/ask ticks for scalping strategies"
+columns = [
+  { name = "timestamp", type = "int64", nullable = false, description = "Epoch microseconds UTC" },
+  { name = "bid", type = "float64", nullable = false },
+  { name = "ask", type = "float64", nullable = false },
+  { name = "bid_volume", type = "float64", nullable = true },
+  { name = "ask_volume", type = "float64", nullable = true },
+  { name = "session", type = "utf8", nullable = false, values = ["asian", "london", "new_york", "london_ny_overlap", "off_hours"] },
+  { name = "quarantined", type = "bool", nullable = false, default = false },
+]
+
+[backtest_trades]
+description = "Trade records from backtest engine with full cost attribution (AC #5)"
+columns = [
+  { name = "trade_id", type = "int64", nullable = false },
+  { name = "strategy_id", type = "utf8", nullable = false },
+  { name = "direction", type = "utf8", nullable = false, values = ["long", "short"] },
+  { name = "entry_time", type = "int64", nullable = false },
+  { name = "exit_time", type = "int64", nullable = false },
+  { name = "entry_price_raw", type = "float64", nullable = false, description = "Raw entry price before costs" },
+  { name = "entry_price", type = "float64", nullable = false, description = "Cost-adjusted entry price" },
+  { name = "exit_price_raw", type = "float64", nullable = false, description = "Raw exit price before costs" },
+  { name = "exit_price", type = "float64", nullable = false, description = "Cost-adjusted exit price" },
+  { name = "entry_spread", type = "float64", nullable = false, description = "Spread applied at entry in pips" },
+  { name = "entry_slippage", type = "float64", nullable = false, description = "Slippage applied at entry in pips" },
+  { name = "exit_spread", type = "float64", nullable = false, description = "Spread applied at exit in pips" },
+  { name = "exit_slippage", type = "float64", nullable = false, description = "Slippage applied at exit in pips" },
+  { name = "pnl_pips", type = "float64", nullable = false },
+  { name = "entry_session", type = "utf8", nullable = false },
+  { name = "exit_session", type = "utf8", nullable = false },
+  { name = "signal_id", type = "int64", nullable = false },
+  { name = "holding_duration_bars", type = "int64", nullable = false },
+  { name = "exit_reason", type = "utf8", nullable = false },
+  { name = "lot_size", type = "float64", nullable = false },
+]
+
+[equity_curve]
+description = "Bar-level equity tracking for a backtest run (AC #6)"
+columns = [
+  { name = "timestamp", type = "int64", nullable = false, description = "Epoch microseconds UTC" },
+  { name = "equity_pips", type = "float64", nullable = false, description = "Cumulative equity in pips (closed + unrealized)" },
+  { name = "unrealized_pnl", type = "float64", nullable = false, description = "Unrealized P&L of open position in pips" },
+  { name = "drawdown_pct", type = "float64", nullable = false, description = "Current drawdown from peak as percentage" },
+  { name = "open_trades", type = "int64", nullable = false, description = "Number of open trades at this bar" },
+]
+
+[backtest_metrics]
+description = "Summary metrics per backtest run — single-row table (AC #7)"
+columns = [
+  { name = "total_trades", type = "int64", nullable = false },
+  { name = "winning_trades", type = "int64", nullable = false },
+  { name = "losing_trades", type = "int64", nullable = false },
+  { name = "win_rate", type = "float64", nullable = false },
+  { name = "profit_factor", type = "float64", nullable = false },
+  { name = "sharpe_ratio", type = "float64", nullable = false },
+  { name = "r_squared", type = "float64", nullable = false },
+  { name = "max_drawdown_pips", type = "float64", nullable = false },
+  { name = "max_drawdown_pct", type = "float64", nullable = false },
+  { name = "max_drawdown_duration_bars", type = "int64", nullable = false },
+  { name = "avg_trade_duration_bars", type = "float64", nullable = false },
+  { name = "avg_win", type = "float64", nullable = false },
+  { name = "avg_loss", type = "float64", nullable = false },
+  { name = "largest_win", type = "float64", nullable = false },
+  { name = "largest_loss", type = "float64", nullable = false },
+  { name = "net_pnl_pips", type = "float64", nullable = false },
+  { name = "avg_trade_pips", type = "float64", nullable = false },
+  { name = "strategy_id", type = "utf8", nullable = false },
+  { name = "config_hash", type = "utf8", nullable = false },
+]
+
+[optimization_candidates]
+description = "All evaluated optimization candidates with per-fold scores (Story 5.3)"
+columns = [
+  { name = "candidate_id", type = "uint64", nullable = false, description = "Stable monotonic ID: run_seed + generation + index" },
+  { name = "generation", type = "uint32", nullable = false, description = "Generation number" },
+  { name = "branch", type = "utf8", nullable = false, description = "Branch key (e.g. exit_type=trailing_stop) or __default__" },
+  { name = "instance_type", type = "utf8", nullable = false, description = "Algorithm instance type: cmaes, de, sobol" },
+  { name = "params_json", type = "utf8", nullable = false, description = "JSON-encoded parameter vector" },
+  { name = "cv_objective", type = "float64", nullable = false, description = "CV objective: mean - lambda * std" },
+  { name = "fold_scores", type = "list_float64", nullable = false, description = "Per-fold scores array" },
+]
+
+[promoted_candidates]
+description = "Top-N candidates promoted for Story 5.4 validation gauntlet"
+columns = [
+  { name = "candidate_id", type = "uint64", nullable = false, description = "Stable monotonic ID from optimization_candidates" },
+  { name = "rank", type = "uint32", nullable = false, description = "Rank by cv_objective (1 = best)" },
+  { name = "params_json", type = "utf8", nullable = false, description = "JSON-encoded parameter vector" },
+  { name = "cv_objective", type = "float64", nullable = false, description = "CV objective score" },
+  { name = "fold_scores", type = "list_float64", nullable = false, description = "Per-fold scores array" },
+  { name = "branch", type = "utf8", nullable = false, description = "Branch key" },
+  { name = "instance_type", type = "utf8", nullable = false, description = "Algorithm instance type" },
+]
+
+# ---------------------------------------------------------------------------
+# Validation Gauntlet Schemas (Story 5.4)
+# ---------------------------------------------------------------------------
+
+[walk_forward_results]
+description = "Per-window walk-forward OOS evaluation results (Story 5.4)"
+columns = [
+  { name = "window_id", type = "int64", nullable = false, description = "Window index (0-based)" },
+  { name = "oos_sharpe", type = "float64", nullable = false, description = "Out-of-sample Sharpe ratio" },
+  { name = "oos_pf", type = "float64", nullable = false, description = "Out-of-sample profit factor" },
+  { name = "oos_drawdown", type = "float64", nullable = false, description = "Out-of-sample max drawdown" },
+  { name = "oos_trades", type = "int64", nullable = false, description = "Number of OOS trades" },
+  { name = "oos_pnl", type = "float64", nullable = false, description = "Out-of-sample net PnL in pips" },
+  { name = "is_sharpe", type = "float64", nullable = false, description = "In-sample Sharpe for divergence detection" },
+]
+
+[cpcv_results]
+description = "Per-combination CPCV evaluation results (Story 5.4)"
+columns = [
+  { name = "combination_id", type = "int64", nullable = false, description = "Combination index" },
+  { name = "oos_sharpe", type = "float64", nullable = false, description = "OOS Sharpe for this combination" },
+  { name = "oos_pf", type = "float64", nullable = false, description = "OOS profit factor" },
+  { name = "oos_pnl", type = "float64", nullable = false, description = "OOS net PnL in pips" },
+]
+
+[perturbation_results]
+description = "Parameter perturbation sensitivity analysis (Story 5.4)"
+columns = [
+  { name = "param_name", type = "utf8", nullable = false, description = "Perturbed parameter name" },
+  { name = "perturbation_level", type = "float64", nullable = false, description = "Perturbation level (+/- fraction)" },
+  { name = "sensitivity", type = "float64", nullable = false, description = "Relative performance change" },
+]
+
+[monte_carlo_results]
+description = "Monte Carlo simulation results — bootstrap, permutation, stress (Story 5.4)"
+columns = [
+  { name = "simulation_type", type = "utf8", nullable = false, description = "bootstrap, permutation, or stress" },
+  { name = "metric_name", type = "utf8", nullable = false, description = "Metric identifier" },
+  { name = "metric_value", type = "float64", nullable = false, description = "Metric value" },
+]
+
+[regime_results]
+description = "Regime analysis — volatility tercile x session cross-tabulation (Story 5.4)"
+columns = [
+  { name = "volatility_tercile", type = "utf8", nullable = false, description = "low, medium, or high" },
+  { name = "session", type = "utf8", nullable = false, description = "Forex session name" },
+  { name = "trade_count", type = "int64", nullable = false, description = "Trades in this bucket" },
+  { name = "win_rate", type = "float64", nullable = false, description = "Win rate (0-1)" },
+  { name = "avg_pnl", type = "float64", nullable = false, description = "Average PnL per trade" },
+  { name = "sharpe", type = "float64", nullable = false, description = "Bucket Sharpe ratio" },
+  { name = "sufficient", type = "bool", nullable = false, description = "trade_count >= min_trades_per_bucket" },
+]
+
+[validation_summary]
+description = "Per-candidate validation summary across all gauntlet stages (Story 5.4)"
+columns = [
+  { name = "candidate_id", type = "int64", nullable = false, description = "Candidate index" },
+  { name = "walk_forward_sharpe", type = "float64", nullable = false, description = "Aggregate WF OOS Sharpe" },
+  { name = "pbo", type = "float64", nullable = false, description = "Probability of Backtest Overfitting" },
+  { name = "dsr", type = "float64", nullable = true, description = "Deflated Sharpe Ratio (null if <10 trials)" },
+  { name = "perturbation_max_sensitivity", type = "float64", nullable = false, description = "Max perturbation sensitivity" },
+  { name = "mc_bootstrap_ci_lower", type = "float64", nullable = false, description = "Bootstrap Sharpe CI lower bound" },
+  { name = "mc_stress_survived", type = "bool", nullable = false, description = "Survived all stress tests" },
+  { name = "regime_weakest_sharpe", type = "float64", nullable = false, description = "Weakest sufficient-bucket Sharpe" },
+  { name = "hard_gate_failures", type = "utf8", nullable = false, description = "Comma-separated gate failure names" },
+  { name = "short_circuited", type = "bool", nullable = false, description = "Was candidate short-circuited" },
+]

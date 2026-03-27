@@ -1,0 +1,700 @@
+[schema.project.name]
+type = "string"
+required = true
+description = "Project name identifier"
+
+[schema.project.version]
+type = "string"
+required = true
+description = "Semantic version string"
+
+[schema.data.storage_path]
+type = "string"
+required = true
+description = "Root directory for market data storage"
+
+[schema.data.default_pair]
+type = "string"
+required = true
+description = "Default currency pair for operations"
+
+[schema.data.default_timeframe]
+type = "string"
+required = true
+allowed = ["M1", "M5", "H1", "D1", "W"]
+description = "Default timeframe for data operations"
+
+[schema.data.supported_timeframes]
+type = "array"
+required = true
+description = "List of supported timeframe identifiers"
+
+[schema.data.download.source]
+type = "string"
+required = true
+allowed = ["dukascopy"]
+description = "Data download source provider"
+
+
+[schema.data.quality.gap_threshold_bars]
+type = "integer"
+required = true
+min = 1
+max = 100
+description = "Number of consecutive missing M1 bars to flag as a gap"
+
+[schema.data.quality.gap_warning_per_year]
+type = "integer"
+required = true
+min = 1
+max = 1000
+description = "Number of gaps per year that triggers a warning"
+
+[schema.data.quality.gap_error_per_year]
+type = "integer"
+required = true
+min = 1
+max = 1000
+description = "Number of gaps per year that triggers an error"
+
+[schema.data.quality.gap_error_minutes]
+type = "integer"
+required = true
+min = 1
+max = 1440
+description = "Duration in minutes of a single gap that triggers an error"
+
+[schema.data.quality.spread_multiplier_threshold]
+type = "float"
+required = true
+min = 1.0
+max = 100.0
+description = "Multiplier of median spread to flag as outlier"
+
+[schema.data.quality.stale_consecutive_bars]
+type = "integer"
+required = true
+min = 1
+max = 100
+description = "Consecutive bars with identical price to flag as stale"
+
+[schema.data.quality.score_green_threshold]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Minimum score for GREEN quality rating"
+
+[schema.data.quality.score_yellow_threshold]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Minimum score for YELLOW quality rating"
+
+[schema.sessions]
+type = "table"
+required = true
+description = "Trading session schedule definitions"
+
+[schema.sessions.timezone]
+type = "string"
+required = true
+description = "Timezone for session schedule"
+
+[schema.logging.level]
+type = "string"
+required = true
+allowed = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+description = "Minimum logging level"
+
+[schema.logging.log_dir]
+type = "string"
+required = true
+description = "Directory for log file output"
+
+[schema.logging.max_file_size_mb]
+type = "integer"
+required = true
+min = 1
+max = 500
+description = "Maximum log file size in megabytes"
+
+[schema.logging.retention_days]
+type = "integer"
+required = true
+min = 1
+max = 365
+description = "Number of days to retain log files"
+
+[schema.pipeline.artifacts_dir]
+type = "string"
+required = true
+description = "Directory for pipeline artifact output"
+
+[schema.pipeline.checkpoint_enabled]
+type = "boolean"
+required = true
+description = "Whether pipeline checkpointing is enabled"
+
+[schema.pipeline.retry_max_attempts]
+type = "integer"
+required = true
+min = 1
+max = 10
+description = "Maximum retry attempts for external failure recovery (D8)"
+
+[schema.pipeline.retry_backoff_base_s]
+type = "float"
+required = true
+min = 0.5
+max = 60.0
+description = "Base seconds for exponential backoff on external failures (D8)"
+
+[schema.pipeline.gated_stages]
+type = "array"
+required = true
+description = "List of stage names requiring operator gate decision before transition"
+
+[schema.pipeline.checkpoint_granularity]
+type = "integer"
+required = true
+min = 100
+max = 100000
+description = "Number of bars between within-stage checkpoints for long-running stages"
+
+[schema.data_pipeline.storage_path]
+type = "string"
+required = true
+description = "Root directory for downloaded market data storage"
+
+[schema.data_pipeline.contracts_path]
+type = "string"
+required = true
+description = "Path to contracts/ directory containing arrow_schemas.toml and other contract files"
+
+[schema.data_pipeline.default_resolution]
+type = "string"
+required = true
+allowed = ["M1", "tick"]
+description = "Default data resolution for downloads"
+
+[schema.data_pipeline.request_delay_seconds]
+type = "float"
+required = true
+min = 0.0
+max = 30.0
+description = "Delay between consecutive download requests to avoid rate limiting"
+
+[schema.data_pipeline.max_retries]
+type = "integer"
+required = true
+min = 0
+max = 10
+description = "Maximum retry attempts for failed downloads"
+
+[schema.data_pipeline.timeframe_conversion.target_timeframes]
+type = "array"
+required = true
+allowed_elements = ["M1", "M5", "H1", "D1", "W"]
+description = "List of target timeframes to generate from M1 source data"
+
+[schema.data_pipeline.timeframe_conversion.source_timeframe]
+type = "string"
+required = true
+allowed = ["M1", "M5", "H1", "D1", "W"]
+description = "Source timeframe for conversion (typically M1)"
+
+[schema.data_pipeline.timeframe_conversion.daily_open_utc_hour]
+type = "integer"
+required = false
+min = 0
+max = 23
+description = "UTC hour when broker daily candle opens (e.g. 22 for GMT+2 brokers like IC Markets). Defaults to 0 (UTC midnight)."
+
+[schema.data_pipeline.splitting.split_ratio]
+type = "float"
+required = true
+min = 0.5
+max = 0.95
+description = "Fraction of data allocated to training set (chronological split)"
+
+[schema.data_pipeline.splitting.split_mode]
+type = "string"
+required = true
+allowed = ["ratio", "date"]
+description = "Split strategy: ratio (percentage) or date (explicit boundary)"
+
+[schema.data_pipeline.splitting.split_date]
+type = "string"
+required = false
+description = "Explicit split boundary date (ISO 8601). Required when split_mode = date"
+
+[schema.data_pipeline.download.pairs]
+type = "array"
+required = true
+description = "List of currency pairs to download (e.g. EURUSD)"
+
+[schema.data_pipeline.download.start_date]
+type = "string"
+required = true
+description = "Start date for data download range (ISO 8601)"
+
+[schema.data_pipeline.download.end_date]
+type = "string"
+required = true
+description = "End date for data download range (ISO 8601)"
+
+[schema.data_pipeline.download.resolution]
+type = "string"
+required = true
+allowed = ["M1", "tick"]
+description = "Data resolution for this download run"
+
+[schema.monitoring.heartbeat_interval_ms]
+type = "integer"
+required = true
+min = 1000
+max = 60000
+description = "Interval in milliseconds between heartbeat signals"
+
+[schema.monitoring.alert_on_disconnect]
+type = "boolean"
+required = true
+description = "Whether to alert when connection is lost"
+
+[schema.optimization.batch_size]
+type = "integer"
+required = true
+min = 64
+max = 65536
+description = "Number of candidate evaluations per generation batch"
+
+[schema.optimization.max_generations]
+type = "integer"
+required = true
+min = 1
+max = 100000
+description = "Maximum number of optimization generations"
+
+[schema.optimization.checkpoint_interval_generations]
+type = "integer"
+required = true
+min = 1
+max = 1000
+description = "Generations between checkpoint writes"
+
+[schema.optimization.cv_lambda]
+type = "float"
+required = true
+min = 0.0
+max = 10.0
+description = "CV penalty weight: score = mean - lambda * std"
+
+[schema.optimization.cv_folds]
+type = "integer"
+required = true
+min = 2
+max = 20
+description = "Number of cross-validation folds"
+
+[schema.optimization.convergence_tolfun]
+type = "float"
+required = true
+min = 1e-10
+max = 1.0
+description = "Function tolerance for convergence detection"
+
+[schema.optimization.stagnation_generations]
+type = "integer"
+required = true
+min = 5
+max = 1000
+description = "Generations without improvement before restart"
+
+[schema.optimization.memory_budget_mb]
+type = "integer"
+required = true
+min = 512
+max = 65536
+description = "Memory budget in MB for optimization run"
+
+[schema.optimization.sobol_fraction]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Fraction of batch budget allocated to quasi-random exploration"
+
+[schema.optimization.ucb1_exploration]
+type = "float"
+required = true
+min = 0.0
+max = 10.0
+description = "UCB1 exploration weight for branch budget allocation"
+
+[schema.optimization.signal_cache.max_entries]
+type = "integer"
+required = false
+min = 1
+max = 10000
+description = "Maximum number of cached enriched Arrow files on disk"
+
+[schema.optimization.signal_cache.max_cache_bytes]
+type = "integer"
+required = false
+min = 1000000000
+max = 500000000000
+description = "Maximum total disk usage for signal cache in bytes"
+
+[schema.optimization.signal_cache.parallelism]
+type = "integer"
+required = false
+min = 1
+max = 32
+description = "Max concurrent signal precompute workers"
+
+[schema.optimization.signal_cache.log_stats_interval]
+type = "integer"
+required = false
+min = 1
+max = 1000
+description = "Log cache hit/miss stats every N generations"
+
+[schema.optimization.portfolio.cmaes_instances]
+type = "integer"
+required = true
+min = 1
+max = 100
+description = "Number of CMA-ES algorithm instances"
+
+[schema.optimization.portfolio.de_instances]
+type = "integer"
+required = true
+min = 1
+max = 100
+description = "Number of Differential Evolution instances"
+
+[schema.optimization.portfolio.cmaes_pop_base]
+type = "integer"
+required = true
+min = 16
+max = 10000
+description = "Base population size for CMA-ES instances"
+
+[schema.optimization.portfolio.de_pop_base]
+type = "integer"
+required = true
+min = 16
+max = 10000
+description = "Base population size for DE instances"
+
+[schema.optimization.portfolio.pop_scaling_factor]
+type = "integer"
+required = true
+min = 1
+max = 50
+description = "Population scaling factor per parameter dimension"
+
+[schema.optimization.portfolio.min_pop]
+type = "integer"
+required = true
+min = 16
+max = 10000
+description = "Minimum population size regardless of parameter count"
+
+[schema.validation.stage_order]
+type = "array"
+required = true
+description = "Ordered list of validation stages to execute"
+
+[schema.validation.short_circuit_on_validity_failure]
+type = "boolean"
+required = true
+description = "Whether to skip remaining stages after a validity hard gate failure (PBO/DSR)"
+
+[schema.validation.checkpoint_interval]
+type = "integer"
+required = true
+min = 1
+max = 100
+description = "Checkpoint after every N (candidate, stage) completions"
+
+[schema.validation.deterministic_seed_base]
+type = "integer"
+required = true
+min = 0
+max = 2147483647
+description = "Base seed for deterministic RNG across all stochastic validation components"
+
+[schema.validation.walk_forward.n_windows]
+type = "integer"
+required = true
+min = 2
+max = 50
+description = "Number of rolling walk-forward windows"
+
+[schema.validation.walk_forward.train_ratio]
+type = "float"
+required = true
+min = 0.5
+max = 0.95
+description = "Fraction of each window allocated to training"
+
+[schema.validation.walk_forward.purge_bars]
+type = "integer"
+required = true
+min = 0
+max = 14400
+description = "Number of M1 bars to purge between train and test segments"
+
+[schema.validation.walk_forward.embargo_bars]
+type = "integer"
+required = true
+min = 0
+max = 14400
+description = "Number of M1 bars for embargo gap after test segment"
+
+[schema.validation.cpcv.n_groups]
+type = "integer"
+required = true
+min = 3
+max = 50
+description = "Number of groups for Combinatorial Purged Cross-Validation"
+
+[schema.validation.cpcv.k_test_groups]
+type = "integer"
+required = true
+min = 1
+max = 10
+description = "Number of test groups per CPCV combination"
+
+[schema.validation.cpcv.purge_bars]
+type = "integer"
+required = true
+min = 0
+max = 14400
+description = "Purge gap in M1 bars between adjacent train/test groups"
+
+[schema.validation.cpcv.embargo_bars]
+type = "integer"
+required = true
+min = 0
+max = 14400
+description = "Embargo gap in M1 bars after test groups"
+
+[schema.validation.cpcv.pbo_red_threshold]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "PBO threshold above which candidate fails hard RED gate (D11)"
+
+[schema.validation.perturbation.levels]
+type = "array"
+required = true
+description = "Perturbation levels as fractions of parameter range (+/- each level)"
+
+[schema.validation.perturbation.min_performance_retention]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Minimum fraction of base performance to retain under perturbation"
+
+[schema.validation.monte_carlo.n_bootstrap]
+type = "integer"
+required = true
+min = 100
+max = 100000
+description = "Number of bootstrap resampling iterations"
+
+[schema.validation.monte_carlo.n_permutation]
+type = "integer"
+required = true
+min = 100
+max = 100000
+description = "Number of permutation test iterations"
+
+[schema.validation.monte_carlo.stress_multipliers]
+type = "array"
+required = true
+description = "Cost multipliers for stress testing (e.g. 1.5x, 2x, 3x spread/slippage)"
+
+[schema.validation.monte_carlo.confidence_level]
+type = "float"
+required = true
+min = 0.80
+max = 0.999
+description = "Confidence level for bootstrap confidence intervals"
+
+[schema.validation.regime.volatility_quantiles]
+type = "array"
+required = true
+description = "Quantile boundaries for volatility tercile classification"
+
+[schema.validation.regime.min_trades_per_bucket]
+type = "integer"
+required = true
+min = 5
+max = 500
+description = "Minimum trades per regime bucket for statistical validity"
+
+[schema.validation.regime.sessions]
+type = "array"
+required = true
+description = "Forex session labels for regime cross-tabulation"
+
+[schema.validation.dsr.significance_level]
+type = "float"
+required = true
+min = 0.001
+max = 0.20
+description = "Significance level for Deflated Sharpe Ratio test"
+
+[schema.confidence.hard_gates.dsr_pass_required]
+type = "boolean"
+required = true
+description = "Whether DSR must pass for candidate to avoid RED gate (D11)"
+
+[schema.confidence.hard_gates.pbo_max_threshold]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Maximum PBO value — above this threshold candidate fails hard RED gate (D11)"
+
+[schema.confidence.hard_gates.cost_stress_survival_multiplier]
+type = "float"
+required = true
+min = 1.0
+max = 10.0
+description = "Cost multiplier that candidate must survive for stress gate"
+
+[schema.confidence.weights.walk_forward_oos_consistency]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Weight for walk-forward OOS consistency component"
+
+[schema.confidence.weights.cpcv_pbo_margin]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Weight for CPCV PBO margin component"
+
+[schema.confidence.weights.parameter_stability]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Weight for parameter stability component"
+
+[schema.confidence.weights.monte_carlo_stress_survival]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Weight for Monte Carlo stress survival component"
+
+[schema.confidence.weights.regime_uniformity]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Weight for regime uniformity component"
+
+[schema.confidence.weights.in_sample_oos_coherence]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Weight for IS vs OOS coherence component (FR35)"
+
+[schema.confidence.thresholds.green_minimum]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Minimum composite score for GREEN rating"
+
+[schema.confidence.thresholds.yellow_minimum]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Minimum composite score for YELLOW rating"
+
+[schema.confidence.anomaly.min_population_size]
+type = "integer"
+required = true
+min = 2
+max = 1000
+description = "Minimum candidate count for cross-population anomaly tests"
+
+[schema.selection.min_cluster_size]
+type = "integer"
+required = true
+min = 2
+max = 100
+description = "Minimum cluster size for HDBSCAN"
+
+[schema.selection.hdbscan_min_samples]
+type = "integer"
+required = true
+min = 1
+max = 100
+description = "Minimum samples for HDBSCAN core point definition"
+
+[schema.selection.topsis_top_n]
+type = "integer"
+required = true
+min = 5
+max = 500
+description = "Number of top candidates to retain after TOPSIS ranking"
+
+[schema.selection.stability_threshold]
+type = "float"
+required = true
+min = 0.0
+max = 5.0
+description = "Maximum fold_score_std for stability filtering"
+
+[schema.selection.target_candidates]
+type = "integer"
+required = true
+min = 5
+max = 20
+description = "Target number of diverse candidates to select for forward testing"
+
+[schema.selection.deterministic_ratio]
+type = "float"
+required = true
+min = 0.0
+max = 1.0
+description = "Fraction of target_candidates selected deterministically (remainder is exploratory)"
+
+[schema.selection.diversity_dimensions]
+type = "array"
+required = true
+description = "Behavior dimensions for MAP-Elites diversity archive"
+
+[schema.selection.max_clustering_candidates]
+type = "integer"
+required = true
+min = 100
+max = 50000
+description = "Pre-filter candidates to this count before clustering if input exceeds it"
+
+[schema.execution.enabled]
+type = "boolean"
+required = true
+description = "Whether live execution is enabled"
+
+[schema.execution.mode]
+type = "string"
+required = true
+allowed = ["practice", "live"]
+description = "Execution mode — practice or live trading"

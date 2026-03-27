@@ -1,0 +1,26 @@
+{
+  "raw_description": "Moving average crossover on EURUSD H1, London session only, with chandelier exit at 3x ATR",
+  "pair": "EURUSD",
+  "timeframe": "H1",
+  "indicators": [
+    {
+      "type": "sma_crossover",
+      "params": {"fast_period": 20, "slow_period": 50},
+      "role": "signal"
+    }
+  ],
+  "entry_conditions": ["sma_crossover crosses_above"],
+  "exit_rules": [
+    {"type": "chandelier", "params": {"atr_period": 14, "atr_multiplier": 3.0}},
+    {"type": "stop_loss", "params": {"type": "atr_multiple", "value": 1.5}},
+    {"type": "take_profit", "params": {"type": "risk_reward", "value": 3.0}}
+  ],
+  "filters": [
+    {"type": "session", "params": {"include": ["london"]}}
+  ],
+  "position_sizing": {
+    "method": "fixed_risk",
+    "risk_percent": 1.0,
+    "max_lots": 1.0
+  }
+}

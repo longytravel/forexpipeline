@@ -1,0 +1,15 @@
+[package]
+name = "strategy_engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "2"
+common = { path = "../common" }
+cost_model = { path = "../cost_model" }
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"

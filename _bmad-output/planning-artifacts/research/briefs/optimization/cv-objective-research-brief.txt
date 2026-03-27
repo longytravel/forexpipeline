@@ -1,0 +1,104 @@
+# Research Brief: Cross-Validation Objective for Optimizer
+
+## System Context
+
+We have a fully automated forex backtesting system that discovers trading strategies via parameter optimization. The pipeline:
+
+1. **Staged Optimization**: Signal → Time → Core Trade Profile (SL+TP+Trailing+BE joint) → Exit modules → Refinement
+2. **Candidate Selection**: DSR prefilter → signal+risk deduplication → top 25 by IS quality
+3. **Validation Pipeline**: Walk-forward (rolling OOS windows) → CPCV (45-fold combinatorial) → Stability (param perturbation) → Monte Carlo (bootstrap + permutation) → Confidence scoring
+4. **Evaluation Engine**: Rust (PyO3 + Rayon), 300-750 evals/sec with M1 sub-bar data, batch_size=2048
+
+### Key Parameters
+- 25 discrete parameters (mix of categorical: sl_mode, trailing_mode; ordinal: periods, pips; boolean: breakeven_enabled)
+- Data: EUR/USD H1, 96K bars (2007-2026), 80/20 back/forward split
+- M1 sub-bar simulation for realistic intra-bar SL/TP fill detection
+- Quality score formula: `ln(1+Sortino) * R² * min(PF,5) * trade_ramp * ret_factor / (Ulcer + DD/2 + 5)`
+
+## What We Learned (March 2026 Testing)
+
+### Exploitation Method Comparison
+We built and tested 4 exploitation methods on hidden_smash_day EUR/USD H1 turbo (175K trials):
+
+| Method | IS Quality | OOS Sharpe | Evals/sec | Opt Time | Verdict |
+|--------|-----------|------------|-----------|----------|---------|
+| EDA (Cross-Entropy) | 15.68 | 0.17 | 750 | 234s | RED 32.6 |
+| CMA-ES (fixed) | 14.68 | 1.21 (best cand) | 340 | 516s | RED 49.3 |
+| GA (tournament+crossover) | 35.72 | -5.13 | 784 | 224s | RED 36.6 |
+| Original (broken CMA-ES) | 13.92 | 0.22 | 328 | 535s | YELLOW 54.1 |
+
+### Critical Finding
+**The best validation result came from effectively random search** (broken CMA-ES = Sobol + noise). More intelligent optimization consistently produced higher IS quality but worse OOS results. The GA was the most extreme: IS quality 35.72 (2.5x the others) but all 10 candidates were identical (population collapsed) with -5.13 OOS Sharpe.
+
+### Root Cause
+The optimizer maximizes `quality(params, training_data)` on a single contiguous block (2007-2023). Any optimizer that's "good" at this task will find parameters that exploit specific patterns in that block — patterns that don't persist into 2023-2026. The validation pipeline catches this post-hoc, but by then we've wasted all the optimization budget on fool's gold.
+
+### CMA-ES Tell() Bug Discovery
+CMA-ES had 3 bugs in its feedback loop since implementation:
+1. update() used key-matching from rounded x_tell instead of exact row-index pairing — CMAwM's discretization != simple rounding
+2. Dropped generations silently when prefilter removed all rows
+3. Neighborhood bounds mismatch between sample() and update()
+
+All fixed, but the implication: CMA-ES was never learning. With pop_size=2048 and broken feedback, it was doing expensive random search. This accidentally prevented overfitting.
+
+## Proposal: Cross-Validation Objective
+
+### Core Idea
+Replace the single-period IS quality score with a multi-fold CV quality score as the optimization objective.
+
+**Current**: `objective = quality(params, full_IS_data)`
+**Proposed**: `objective = aggregation(quality(params, fold_1), quality(params, fold_2), ..., quality(params, fold_K))`
+
+### Aggregation Function Options
+Research should evaluate:
+1. **Worst fold** (min): `min(q_1, q_2, q_3)` — most conservative, prevents any single-period exploitation
+2. **Mean**: `mean(q_1, q_2, q_3)` — balanced, standard k-fold approach
+3. **Geometric mean**: `(q_1 * q_2 * q_3)^(1/3)` — zero in any fold zeroes the score
+4. **Mean minus std**: `mean(q) - lambda * std(q)` — penalizes inconsistency
+5. **Conditional Value at Risk (CVaR)**: Mean of worst X% folds — common in finance for tail risk
+
+### Fold Design Options
+Research should evaluate:
+1. **Non-overlapping blocks**: [2007-2012], [2012-2017], [2017-2023] — simple, no data leakage
+2. **Rolling walk-forward folds**: Train on N years, test on next M years, roll forward — mirrors live deployment
+3. **Purged k-fold**: Standard k-fold with purge gap between train/test — prevents lookahead bias from autocorrelated data (as in de Prado's CPCV)
+4. **Expanding window**: [2007-2010], [2007-2013], [2007-2017], [2007-2023] — each fold adds data, most recent always included
+
+### Implementation Considerations
+- Each fold requires its own BacktestEngine (signal pre-computation depends on lookback period)
+- K=3 folds = 3x evaluation cost (~250 evals/sec for turbo)
+- K=5 folds = 5x cost (~150 evals/sec) — still workable for standard preset
+- Signal generation is per-engine (strategy indicators computed on each fold's data)
+- The Rust batch evaluator handles one engine at a time — folds evaluated sequentially per batch, not in parallel
+- Could parallelize fold evaluation in Rust (separate Rayon thread pools per fold) — significant engineering
+
+### Questions for the Research
+
+1. **What aggregation function produces the best OOS generalization for trading strategy optimization?** Literature on robust optimization, distributionally robust optimization (DRO), and worst-case optimization is relevant.
+
+2. **Is cross-validation inside the optimizer standard practice in quantitative finance?** What do firms like Two Sigma, Citadel, Jump Trading use? How does this relate to "walk-forward optimization" (WFO) which is common in retail trading platforms like MetaTrader's Strategy Tester?
+
+3. **What's the right number of folds for 16 years of hourly forex data?** Too few = high variance between folds; too many = small folds with regime-specific noise. Literature on optimal fold count for non-stationary time series.
+
+4. **Should the optimizer use a different quality formula than the validator?** Maybe the CV objective should be simpler (just Sharpe?) while the validation pipeline uses the full composite. This separates "finding robust params" from "scoring them."
+
+5. **Purged cross-validation gap**: How large should the purge gap be for H1 forex data? Our current CPCV uses it post-hoc — using it in the optimizer objective requires knowing the appropriate embargo period. De Prado recommends 1% of data as embargo.
+
+6. **Computational tricks**: Are there approximations to full CV evaluation? E.g., evaluating on overlapping windows where signal computation is shared? Or using a subset of folds per batch and rotating (stochastic CV)?
+
+7. **Does this interact with our staged optimization?** If each stage uses CV, signal params optimized in stage 1 are evaluated on all folds. But stage 2 (time filters) is optimized with stage 1 locked — should it use the same folds or fresh folds?
+
+8. **Comparison with existing approaches**: Walk-Forward Optimization (WFO) in MetaTrader/StrategyQuant evaluates one walk-forward split at a time. Our proposal evaluates ALL folds simultaneously per trial. What are the theoretical advantages/disadvantages?
+
+### Success Criteria
+- A strategy with genuine edge should score higher with CV objective than without
+- A strategy without edge should score near-zero with CV objective (no false positives)
+- The optimizer shouldn't need more than 2-3x the current trial budget
+- Walk-forward validation pass rate should be significantly higher for CV-optimized candidates (because robustness is baked into the objective)
+
+### Related Reading We've Done
+- `research/briefs/staged-vs-joint-optimization-report.md` — Block Coordinate Descent analysis
+- `research/briefs/optimizer-engine-upgrade-report.md` — CMA-ES vs CE vs TPE analysis
+- `research/briefs/candidate-selection-redesign-report.md` — DSR and multiple testing correction
+- De Prado (2018) — CPCV methodology (we implemented this for validation)
+- Bailey & López de Prado (2014) — Deflated Sharpe Ratio (implemented)

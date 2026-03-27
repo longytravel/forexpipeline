@@ -1,0 +1,83 @@
+# Valid MA Crossover Strategy Specification
+# Reference fixture shared with Story 2.3/2.9 Python validator
+
+[metadata]
+schema_version = "1"
+name = "ma-crossover-eurusd"
+version = "v001"
+pair = "EURUSD"
+timeframe = "H1"
+created_by = "test-fixture"
+config_hash = "sha256:abc123def456"
+
+# --- Entry Rules ---
+
+[[entry_rules.conditions]]
+indicator = "sma"
+threshold = 0.0
+comparator = "crosses_above"
+[entry_rules.conditions.parameters]
+period = 20
+
+[[entry_rules.confirmation]]
+indicator = "ema"
+threshold = 0.0
+comparator = ">"
+[entry_rules.confirmation.parameters]
+period = 50
+
+[[entry_rules.filters]]
+type = "session"
+[entry_rules.filters.params]
+include = ["london", "new_york", "london_ny_overlap"]
+
+[[entry_rules.filters]]
+type = "day_of_week"
+[entry_rules.filters.params]
+include = [0, 1, 2, 3, 4]
+
+# --- Exit Rules ---
+
+[exit_rules.stop_loss]
+type = "atr_multiple"
+value = 2.0
+
+[exit_rules.take_profit]
+type = "risk_reward"
+value = 2.0
+
+[exit_rules.trailing]
+type = "chandelier"
+[exit_rules.trailing.params]
+atr_period = 14
+atr_multiplier = 3.0
+
+# --- Position Sizing ---
+
+[position_sizing]
+method = "fixed_risk"
+risk_percent = 1.0
+max_lots = 1.0
+
+# --- Optimization Plan ---
+
+[[optimization_plan.parameter_groups]]
+name = "entry_timing"
+parameters = ["sma_period", "ema_period"]
+[optimization_plan.parameter_groups.ranges.sma_period]
+min = 5.0
+max = 50.0
+step = 5.0
+[optimization_plan.parameter_groups.ranges.ema_period]
+min = 10.0
+max = 100.0
+step = 10.0
+
+[optimization_plan]
+group_dependencies = ["entry_timing"]
+objective_function = "sharpe"
+
+# --- Cost Model Reference ---
+
+[cost_model_reference]
+version = "v001"

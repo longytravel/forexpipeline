@@ -1,0 +1,6 @@
+[session_column]
+name = "session"
+type = "utf8"
+nullable = false
+values = ["asian", "london", "new_york", "london_ny_overlap", "off_hours"]
+description = "Session label computed from bar timestamp and config schedule"

@@ -1,0 +1,32 @@
+# Environment
+.env
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Rust
+target/
+
+# Node
+node_modules/
+
+# Pipeline artifacts
+logs/
+artifacts/
+
+# Crash-safe write temp files
+*.partial
+
+# Python cache
+.pytest_cache/
+
+# Claude Code project memories (personal, not shared)
+.claude/projects/
+
+# IDE
+.idea/
+.vscode/
+*.swp

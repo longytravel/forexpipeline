@@ -1,0 +1,7 @@
+# Local development environment overrides
+[execution]
+enabled = false
+mode = "practice"
+
+[logging]
+level = "DEBUG"

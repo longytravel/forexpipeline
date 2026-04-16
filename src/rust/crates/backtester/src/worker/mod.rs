@@ -53,6 +53,8 @@ enum Command {
         #[serde(default)]
         #[allow(dead_code)]
         scores_only: bool,
+        #[serde(default)]
+        score_mode: Option<String>,
     },
     Shutdown {
         id: u64,
@@ -306,6 +308,7 @@ fn handle_eval(
     groups: &[EvalGroup],
     window_start: Option<u64>,
     window_end: Option<u64>,
+    score_mode: crate::metrics::ScoreMode,
 ) -> Response {
     // Validate window bounds to prevent usize underflow / huge allocations
     if let (Some(ws), Some(we)) = (window_start, window_end) {
@@ -388,6 +391,7 @@ fn handle_eval(
             cancelled.clone(),
             window_start,
             window_end,
+            score_mode,
         ) {
             Ok(s) => s,
             Err(e) => {
@@ -467,10 +471,11 @@ pub fn run() -> Result<(), BacktesterError> {
                 let resp = handle_load_data(&mut cache, id, &key, &data_path);
                 write_response(&mut writer, &resp)?;
             }
-            Command::Eval { id, data_key, groups, window_start, window_end, scores_only: _ } => {
+            Command::Eval { id, data_key, groups, window_start, window_end, scores_only: _, score_mode } => {
+                let mode = crate::metrics::ScoreMode::from_str_opt(score_mode.as_deref());
                 let resp = handle_eval(
                     &mut cache, id, &data_key, &groups,
-                    window_start, window_end,
+                    window_start, window_end, mode,
                 );
                 write_response(&mut writer, &resp)?;
             }
@@ -529,8 +534,9 @@ mod tests {
                 Ok(Command::LoadData { id, key, data_path }) => {
                     output.push(handle_load_data(&mut cache, id, &key, &data_path));
                 }
-                Ok(Command::Eval { id, data_key, groups, window_start, window_end, .. }) => {
-                    let resp = handle_eval(&mut cache, id, &data_key, &groups, window_start, window_end);
+                Ok(Command::Eval { id, data_key, groups, window_start, window_end, score_mode, .. }) => {
+                    let mode = crate::metrics::ScoreMode::from_str_opt(score_mode.as_deref());
+                    let resp = handle_eval(&mut cache, id, &data_key, &groups, window_start, window_end, mode);
                     output.push(resp);
                 }
                 Ok(Command::Shutdown { id }) => {

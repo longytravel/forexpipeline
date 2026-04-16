@@ -30,10 +30,10 @@ fn validate(artifact: &CostModelArtifact) -> Result<(), CostModelError> {
         ));
     }
 
-    // V1: only EURUSD supported (pip_value hardcoded to 0.0001)
-    if artifact.pair != "EURUSD" {
+    // V1: pip_value hardcoded to 0.0001 — reject JPY pairs which need 0.01
+    if artifact.pair.contains("JPY") {
         return Err(CostModelError::ValidationError(format!(
-            "V1 only supports EURUSD (pip_value is hardcoded to 0.0001; \
+            "V1 does not support JPY pairs (pip_value is hardcoded to 0.0001; \
              JPY pairs require 0.01). Got pair: '{}'",
             artifact.pair
         )));

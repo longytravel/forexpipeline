@@ -8,8 +8,6 @@
 //! - `sma_crossover` is a Python-side composite indicator not in the Rust
 //!   registry (which has individual `sma`, `ema`). Epic 3 will add composite
 //!   indicator support to the Rust registry.
-//! - `group_dependencies` uses arrow notation ("a -> b") which the validator
-//!   treats as a single group name lookup rather than a dependency expression.
 
 use std::path::PathBuf;
 
@@ -108,13 +106,10 @@ fn test_e2e_validate_spec_all_indicators_registered() {
         Err(errors) => {
             // Filter errors: exclude known Python↔Rust gaps:
             // - sma_crossover is a Python composite indicator not yet in the Rust registry
-            // - group_dependencies arrow notation ("a -> b") parsed as literal group name
             let unexpected_errors: Vec<_> = errors
                 .iter()
                 .filter(|e| e.severity == Severity::Error)
                 .filter(|e| !e.reason.contains("sma_crossover"))
-                .filter(|e| !e.reason.contains("group_dependencies"))
-                .filter(|e| !(e.field == "group_dependencies" || e.reason.contains("->")) )
                 .collect();
             assert!(
                 unexpected_errors.is_empty(),
@@ -176,12 +171,11 @@ fn test_e2e_cost_model_reference_valid() {
     match result {
         Ok(_) => {}
         Err(errors) => {
-            // Exclude known Python↔Rust gaps (sma_crossover, group_dependencies)
+            // Exclude known Python↔Rust gaps (sma_crossover)
             let unexpected: Vec<_> = errors
                 .iter()
                 .filter(|e| e.severity == Severity::Error)
                 .filter(|e| !e.reason.contains("sma_crossover"))
-                .filter(|e| !e.reason.contains("->"))
                 .collect();
             assert!(
                 unexpected.is_empty(),

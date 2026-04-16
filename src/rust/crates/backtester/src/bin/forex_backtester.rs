@@ -80,6 +80,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     scores_only: bool,
 
+    /// Score computation mode: "sharpe" (legacy) or "composite" (default).
+    #[arg(long, default_value = "composite")]
+    score_mode: String,
+
     /// Path to manifest JSON for multi-group batch evaluation.
     /// Mutually exclusive with --spec/--param-batch.
     #[arg(long)]
@@ -99,6 +103,8 @@ struct ManifestSpec {
     window_end: Option<u64>,
     #[serde(default)]
     scores_only: bool,
+    #[serde(default)]
+    score_mode: Option<String>,
 }
 
 /// A single signal group within a manifest.
@@ -257,6 +263,7 @@ fn run(args: Args) -> Result<(), BacktesterError> {
             &spec, data_path, output_dir, config_hash, &cost_model,
             fold_config, cancelled, batch_path, args.scores_only,
             args.window_start, args.window_end,
+            backtester::metrics::ScoreMode::from_str_opt(Some(&args.score_mode)),
         )
     } else {
         run_single_mode(
@@ -340,6 +347,7 @@ fn run_batch_mode(
     scores_only: bool,
     window_start: Option<u64>,
     window_end: Option<u64>,
+    score_mode: backtester::metrics::ScoreMode,
 ) -> Result<(), BacktesterError> {
     // Parse parameter batch JSON
     let batch_json = std::fs::read_to_string(batch_path)?;
@@ -364,6 +372,7 @@ fn run_batch_mode(
         cancelled.clone(),
         window_start,
         window_end,
+        score_mode,
     )?;
 
     // Write scores.arrow — per-candidate objective values
@@ -508,6 +517,10 @@ fn run_manifest_mode(
         std::fs::create_dir_all(&group.output_dir)?;
 
         // Run vectorized batch evaluation
+        // CLI --score-mode overrides manifest's score_mode field
+        let manifest_score_mode = backtester::metrics::ScoreMode::from_str_opt(
+            Some(args.score_mode.as_str())
+        );
         let scores = backtester::batch_eval::run_batch_vectorized(
             &group_data,
             &group.candidates,
@@ -516,6 +529,7 @@ fn run_manifest_mode(
             cancelled.clone(),
             manifest.window_start,
             manifest.window_end,
+            manifest_score_mode,
         )?;
 
         // Write scores.arrow to group's output directory

@@ -288,7 +288,7 @@ pub const VALID_TAKE_PROFIT_TYPES: [&str; 4] =
 pub const VALID_SIZING_METHODS: [&str; 2] = ["fixed_risk", "fixed_lots"];
 
 /// Valid objective function metrics.
-pub const VALID_OBJECTIVES: [&str; 4] = ["sharpe", "calmar", "profit_factor", "expectancy"];
+pub const VALID_OBJECTIVES: [&str; 5] = ["sharpe", "calmar", "profit_factor", "expectancy", "composite"];
 
 /// Canonical session labels — shared with cost_model crate.
 pub const VALID_SESSIONS: [&str; 5] = ["asian", "london", "new_york", "london_ny_overlap", "off_hours"];

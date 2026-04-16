@@ -350,6 +350,18 @@ struct BatchCandidateState {
     welford_mean: Vec<f64>,
     welford_m2: Vec<f64>,
 
+    // -- Composite scoring accumulators --
+    win_count: Vec<u32>,
+    sum_wins: Vec<f64>,
+    sum_losses: Vec<f64>,     // absolute value of losing trades
+    cum_pnl: Vec<f64>,        // running cumulative PnL (equity)
+    peak_equity: Vec<f64>,    // highest cumulative PnL seen
+    max_dd_pct: Vec<f64>,     // maximum drawdown percentage from peak
+    // Online R² accumulators (x = trade index, y = cumulative PnL at trade)
+    r2_sum_y: Vec<f64>,       // Σ cum_pnl_i
+    r2_sum_y_sq: Vec<f64>,    // Σ cum_pnl_i²
+    r2_sum_xy: Vec<f64>,      // Σ (trade_index * cum_pnl_i)
+
     // -- Active/idle index sets (replaces Vec<bool> in_trade scan) --
     /// Candidates currently in a trade.
     active: Vec<usize>,
@@ -392,21 +404,60 @@ impl BatchCandidateState {
             welford_count: vec![0; n],
             welford_mean: vec![0.0; n],
             welford_m2: vec![0.0; n],
+            win_count: vec![0; n],
+            sum_wins: vec![0.0; n],
+            sum_losses: vec![0.0; n],
+            cum_pnl: vec![0.0; n],
+            peak_equity: vec![0.0; n],
+            max_dd_pct: vec![0.0; n],
+            r2_sum_y: vec![0.0; n],
+            r2_sum_y_sq: vec![0.0; n],
+            r2_sum_xy: vec![0.0; n],
             active: Vec::new(),
             idle: (0..n).collect(),
             is_active: vec![false; n],
         }
     }
 
-    /// Record a trade PnL using Welford's online algorithm.
+    /// Record a trade PnL, updating all online accumulators.
     #[inline]
     fn record_pnl(&mut self, i: usize, pnl: f64) {
+        // Welford accumulators for Sharpe
         self.welford_count[i] += 1;
         let count = self.welford_count[i] as f64;
         let delta = pnl - self.welford_mean[i];
         self.welford_mean[i] += delta / count;
         let delta2 = pnl - self.welford_mean[i];
         self.welford_m2[i] += delta * delta2;
+
+        // Win/loss tracking for profit factor and win rate
+        if pnl > 0.0 {
+            self.win_count[i] += 1;
+            self.sum_wins[i] += pnl;
+        } else if pnl < 0.0 {
+            self.sum_losses[i] += pnl.abs();
+        }
+
+        // Cumulative PnL (equity curve) for drawdown and R²
+        self.cum_pnl[i] += pnl;
+        let equity = self.cum_pnl[i];
+
+        // Drawdown tracking
+        if equity > self.peak_equity[i] {
+            self.peak_equity[i] = equity;
+        }
+        if self.peak_equity[i] > 0.0 {
+            let dd_pct = ((self.peak_equity[i] - equity) / self.peak_equity[i]) * 100.0;
+            if dd_pct > self.max_dd_pct[i] {
+                self.max_dd_pct[i] = dd_pct;
+            }
+        }
+
+        // Online R² accumulators: x = trade_index (0-based), y = cum_pnl
+        let trade_idx = (self.welford_count[i] - 1) as f64;
+        self.r2_sum_y[i] += equity;
+        self.r2_sum_y_sq[i] += equity * equity;
+        self.r2_sum_xy[i] += trade_idx * equity;
     }
 
     /// Move candidate from active to idle.
@@ -610,6 +661,64 @@ impl BatchCandidateState {
         }
         mean / std // unannualized
     }
+
+    /// Compute R² from online accumulators using trade-index regression.
+    fn compute_r_squared(&self, i: usize) -> f64 {
+        let n = self.welford_count[i] as f64;
+        if n < 3.0 {
+            return 0.0;
+        }
+        // x = 0, 1, ..., n-1  →  sum_x = n*(n-1)/2,  sum_x_sq = n*(n-1)*(2n-1)/6
+        let sum_x = n * (n - 1.0) / 2.0;
+        let sum_x_sq = n * (n - 1.0) * (2.0 * n - 1.0) / 6.0;
+        let sum_y = self.r2_sum_y[i];
+        let sum_y_sq = self.r2_sum_y_sq[i];
+        let sum_xy = self.r2_sum_xy[i];
+
+        let denom_x = n * sum_x_sq - sum_x * sum_x;
+        let denom_y = n * sum_y_sq - sum_y * sum_y;
+
+        if denom_x <= 0.0 || denom_y <= 0.0 {
+            return 0.0;
+        }
+
+        let r = (n * sum_xy - sum_x * sum_y) / (denom_x * denom_y).sqrt();
+        (r * r).min(1.0)
+    }
+
+    /// Compute composite quality score from all online accumulators.
+    fn compute_composite(&self, i: usize) -> f64 {
+        let sharpe = self.compute_sharpe(i);
+        let r_squared = self.compute_r_squared(i);
+        let count = self.welford_count[i];
+        let profit_factor = if self.sum_losses[i] == 0.0 {
+            if self.sum_wins[i] > 0.0 { 5.0 } else { 0.0 } // cap at normalisation ceiling
+        } else {
+            self.sum_wins[i] / self.sum_losses[i]
+        };
+        let win_rate = if count > 0 {
+            self.win_count[i] as f64 / count as f64
+        } else {
+            0.0
+        };
+
+        crate::metrics::compute_composite_score(
+            sharpe,
+            r_squared,
+            profit_factor,
+            self.max_dd_pct[i],
+            count,
+            win_rate,
+        )
+    }
+
+    /// Compute score for candidate i using the given mode.
+    fn compute_score(&self, i: usize, mode: crate::metrics::ScoreMode) -> f64 {
+        match mode {
+            crate::metrics::ScoreMode::Sharpe => self.compute_sharpe(i),
+            crate::metrics::ScoreMode::Composite => self.compute_composite(i),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -640,7 +749,7 @@ fn compute_sharpe(pnls: &[f64]) -> f64 {
 /// Run vectorized batch evaluation: single pass through data, ALL candidates
 /// scored simultaneously.
 ///
-/// Returns one Sharpe ratio per candidate.
+/// Returns one score per candidate (Sharpe or composite depending on score_mode).
 pub fn run_batch_vectorized(
     data: &RecordBatch,
     candidates: &[BTreeMap<String, f64>],
@@ -649,6 +758,7 @@ pub fn run_batch_vectorized(
     cancelled: Arc<AtomicBool>,
     window_start: Option<u64>,
     window_end: Option<u64>,
+    score_mode: crate::metrics::ScoreMode,
 ) -> Result<Vec<f64>, BacktesterError> {
     let total_rows = data.num_rows();
     let start = window_start.unwrap_or(0) as usize;
@@ -752,9 +862,9 @@ pub fn run_batch_vectorized(
         );
     }
 
-    // Compute Sharpe per candidate from Welford accumulators (no Vec allocation)
+    // Compute score per candidate using configured mode
     let scores: Vec<f64> = (0..n_candidates)
-        .map(|i| state.compute_sharpe(i))
+        .map(|i| state.compute_score(i, score_mode))
         .collect();
 
     let finite_count = scores.iter().filter(|s| s.is_finite() && **s != 0.0).count();

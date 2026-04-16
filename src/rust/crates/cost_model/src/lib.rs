@@ -253,18 +253,26 @@ mod tests {
     // ==================== Pair Validation ====================
 
     #[test]
-    fn test_pair_eurusd_only_v1() {
+    fn test_pair_validation_v1() {
         // EURUSD passes
         let json = replace_field(&valid_artifact_json(), "pair", "\"EURUSD\"");
         assert!(load_from_str(&json).is_ok());
 
-        // USDJPY fails with descriptive error
+        // AUDUSD passes (non-JPY, same pip_value as EURUSD)
+        let json = replace_field(&valid_artifact_json(), "pair", "\"AUDUSD\"");
+        assert!(load_from_str(&json).is_ok());
+
+        // GBPUSD passes
+        let json = replace_field(&valid_artifact_json(), "pair", "\"GBPUSD\"");
+        assert!(load_from_str(&json).is_ok());
+
+        // USDJPY fails — JPY pairs need pip_value 0.01
         let json = replace_field(&valid_artifact_json(), "pair", "\"USDJPY\"");
         let err = load_from_str(&json).unwrap_err();
         let msg = err.to_string();
         assert!(
-            msg.contains("V1 only supports EURUSD") && msg.contains("pip_value"),
-            "Expected V1 EURUSD-only error with pip_value explanation, got: {msg}"
+            msg.contains("JPY") && msg.contains("pip_value"),
+            "Expected JPY rejection with pip_value explanation, got: {msg}"
         );
     }
 

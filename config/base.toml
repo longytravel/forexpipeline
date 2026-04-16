@@ -119,6 +119,8 @@ stagnation_generations = 50
 memory_budget_mb = 5632
 sobol_fraction = 0.1
 ucb1_exploration = 1.414
+# Score mode: "composite" (Sharpe+R²+PF+DD+trades+WR) or "sharpe" (legacy)
+score_mode = "composite"
 use_persistent_worker = false  # true = use persistent Rust workers (Phase 1)
 persistent_workers = 4         # number of long-lived worker processes
 persistent_eval_timeout = 120  # seconds before killing unresponsive worker

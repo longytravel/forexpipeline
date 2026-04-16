@@ -281,6 +281,7 @@ class PersistentWorker:
         groups: list[dict],
         window_start: int,
         window_end: int,
+        score_mode: str = "composite",
     ) -> dict[str, list[float]]:
         """Evaluate candidate groups on loaded data.
 
@@ -305,6 +306,7 @@ class PersistentWorker:
                     "window_start": window_start,
                     "window_end": window_end,
                     "scores_only": True,
+                    "score_mode": score_mode,
                 }),
                 timeout=self._eval_timeout,
             )

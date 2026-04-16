@@ -222,9 +222,10 @@ def _precompute_core(
                 extra={"component": "pipeline.signal_precompute"},
             )
         else:
-            logger.warning(
-                f"Unsupported indicator: {indicator}, skipping",
-                extra={"component": "pipeline.signal_precompute"},
+            raise ValueError(
+                f"Unsupported indicator '{indicator}' referenced in strategy "
+                f"entry_rules.conditions. Either add a case handler in "
+                f"_compute_indicator() or remove it from the strategy spec."
             )
 
     # 3b. Auto-compute ATR if exit rules reference atr_multiple or chandelier
@@ -641,6 +642,9 @@ def _compute_indicator(
 
         case "channel_breakout":
             return _compute_channel_breakout(tf_df, params)
+
+        case "hidden_smash_day":
+            return _compute_hidden_smash_day(tf_df, params)
 
         case _:
             return None
@@ -1067,6 +1071,71 @@ def _compute_channel_breakout(
             if ok and not np.isnan(struct_v[i]) and struct_v[i] <= 0:
                 signal[i] = -1.0
                 last_signal_bar = i
+
+    return pd.Series(signal, index=tf_df.index)
+
+
+def _compute_hidden_smash_day(
+    tf_df: pd.DataFrame, params: dict,
+) -> pd.Series:
+    """Compute Hidden Smash Day reversal pattern signal.
+
+    Larry Williams' Hidden Smash Day (MQL5 Article #21392):
+    - Buy:  close > prev_close BUT close in lower `range_threshold` of bar range.
+    - Sell: close < prev_close BUT close in upper `range_threshold` of bar range.
+
+    Confirmation mode (default): signal fires on the NEXT bar after the smash
+    bar, only if the confirming bar closes above the smash bar high (buy) or
+    below the smash bar low (sell).
+
+    Returns signal that transitions through zero so crosses_above / crosses_below
+    comparators in the Rust backtester work correctly:
+      +1.0 = buy signal, -1.0 = sell signal, 0.0 = no signal.
+    """
+    range_threshold = float(params.get("range_threshold", 0.25))
+    confirmed = params.get("confirmation_mode", "confirmed")
+    if isinstance(confirmed, str):
+        confirmed = confirmed.lower().strip() == "confirmed"
+
+    close = tf_df["close"].values
+    high = tf_df["high"].values
+    low = tf_df["low"].values
+    n = len(tf_df)
+
+    signal = np.zeros(n)
+
+    for i in range(1, n):
+        bar_range = high[i - 1] - low[i - 1]
+        if bar_range <= 0:
+            continue
+
+        prev_close = close[i - 2] if i >= 2 else np.nan
+        if np.isnan(prev_close):
+            continue
+
+        smash_close = close[i - 1]
+        close_pos = (smash_close - low[i - 1]) / bar_range  # 0 = at low, 1 = at high
+
+        # Buy setup: close > prev_close but close in lower portion of range
+        is_buy_setup = smash_close > prev_close and close_pos <= range_threshold
+        # Sell setup: close < prev_close but close in upper portion of range
+        is_sell_setup = smash_close < prev_close and close_pos >= (1.0 - range_threshold)
+
+        if not (is_buy_setup or is_sell_setup):
+            continue
+
+        if confirmed and i < n:
+            # Confirmation bar is bar[i] — the current bar
+            if is_buy_setup and close[i] > high[i - 1]:
+                signal[i] = 1.0
+            elif is_sell_setup and close[i] < low[i - 1]:
+                signal[i] = -1.0
+        elif not confirmed:
+            # Unconfirmed: fire on the smash bar itself
+            if is_buy_setup:
+                signal[i - 1] = 1.0
+            elif is_sell_setup:
+                signal[i - 1] = -1.0
 
     return pd.Series(signal, index=tf_df.index)
 

@@ -40,6 +40,7 @@ class OptimizationBatchDispatcher:
         self._config = config
         opt_config = config.get("optimization", {})
         self._memory_budget_mb = opt_config.get("memory_budget_mb", 5632)
+        self._score_mode = opt_config.get("score_mode", "composite")
         # Limit concurrent Rust subprocesses to avoid overwhelming Windows
         # process creation. CPU count is a good ceiling since vectorized
         # evaluator is single-threaded per subprocess.
@@ -304,6 +305,7 @@ class OptimizationBatchDispatcher:
                 "window_start": fold.test_start,
                 "window_end": fold.test_end,
                 "scores_only": True,
+                "score_mode": self._score_mode,
             }
 
             manifest_path = gen_dir / f"manifest_fold_{fold.fold_id}.json"
@@ -411,6 +413,7 @@ class PersistentBatchDispatcher:
         self._config = config
         opt_config = config.get("optimization", {})
         self._memory_budget_mb = opt_config.get("memory_budget_mb", 5632)
+        self._score_mode = opt_config.get("score_mode", "composite")
         # Track data keys preloaded on each worker for routing
         self._preloaded_keys: list[tuple[str, Path]] = []
 

@@ -51,9 +51,7 @@ risk_percent = 1.0
 max_lots = 1.0
 
 [optimization_plan]
-group_dependencies = [
-    "entry_timing -> exit_levels",
-]
+group_dependencies = ["entry_timing", "exit_levels"]
 objective_function = "sharpe"
 
 [[optimization_plan.parameter_groups]]

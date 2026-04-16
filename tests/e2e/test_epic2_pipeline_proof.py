@@ -83,7 +83,7 @@ _OPTIMIZATION_PLAN = {
             },
         },
     ],
-    "group_dependencies": ["entry_timing -> exit_levels"],
+    "group_dependencies": ["entry_timing", "exit_levels"],
     "objective_function": "sharpe",
 }
 

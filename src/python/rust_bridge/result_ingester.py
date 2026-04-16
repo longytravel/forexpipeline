@@ -246,7 +246,7 @@ class ResultIngester:
                     score["fold_end_bar"],
                     score.get("sharpe_ratio"),
                     score.get("profit_factor"),
-                    score.get("max_drawdown_pct"),
+                    score.get("max_drawdown_pips"),
                     score.get("total_trades"),
                     score.get("win_rate"),
                     score.get("total_pnl"),
@@ -254,7 +254,7 @@ class ResultIngester:
             cursor.executemany(
                 """INSERT INTO fold_scores
                    (backtest_run_id, candidate_id, fold_id, fold_start_bar,
-                    fold_end_bar, sharpe_ratio, profit_factor, max_drawdown_pct,
+                    fold_end_bar, sharpe_ratio, profit_factor, max_drawdown_pips,
                     total_trades, win_rate, total_pnl)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 rows,

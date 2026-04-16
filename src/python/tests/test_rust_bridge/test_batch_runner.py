@@ -516,7 +516,7 @@ class TestRegressionFindings:
         assert "backtest_metrics" in schemas, "backtest_metrics schema missing from contract SSOT"
         # Verify column counts match Rust arrow_schemas.rs expectations
         assert len(schemas["equity_curve"]["columns"]) == 5
-        assert len(schemas["backtest_metrics"]["columns"]) == 19
+        assert len(schemas["backtest_metrics"]["columns"]) == 18
 
     def test_verify_output_docstring_no_fold_claim(self):
         """Regression: M2 — verify_output() must not claim it calls verify_fold_scores()

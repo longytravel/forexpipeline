@@ -157,7 +157,7 @@ class TestLiveFullAnalysisPipeline:
         assert 0 <= metrics["win_rate"] <= 1.0
         assert metrics["profit_factor"] >= 0
         assert "sharpe_ratio" in metrics
-        assert "max_drawdown_pct" in metrics
+        assert "max_drawdown_pips" in metrics
 
         # Verify equity curve downsampled
         assert len(disk_data["equity_curve_summary"]) <= 500

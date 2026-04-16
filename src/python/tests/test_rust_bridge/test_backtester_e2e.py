@@ -214,10 +214,10 @@ class TestBacktesterLiveE2E:
         actual_cols = trade_table.column_names
         assert actual_cols == expected_cols, f"Schema mismatch: {actual_cols}"
 
-        # Verify equity curve (AC #6 — includes unrealized_pnl, drawdown_pct)
+        # Verify equity curve (AC #6 — includes unrealized_pnl, drawdown_pips)
         eq_table = ipc.open_file(str(self.output_dir / "equity-curve.arrow")).read_all()
         assert eq_table.num_rows == 101  # one per bar + EOD close point (AC #6)
-        eq_expected = ["timestamp", "equity_pips", "unrealized_pnl", "drawdown_pct", "open_trades"]
+        eq_expected = ["timestamp", "equity_pips", "unrealized_pnl", "drawdown_pips", "open_trades"]
         assert eq_table.column_names == eq_expected, f"Equity schema mismatch: {eq_table.column_names}"
 
         # Verify metrics — all AC #7 fields (single-row)
@@ -226,7 +226,7 @@ class TestBacktesterLiveE2E:
         metrics_expected = [
             "total_trades", "winning_trades", "losing_trades", "win_rate",
             "profit_factor", "sharpe_ratio", "r_squared",
-            "max_drawdown_pips", "max_drawdown_pct", "max_drawdown_duration_bars",
+            "max_drawdown_pips", "max_drawdown_pips", "max_drawdown_duration_bars",
             "avg_trade_duration_bars", "avg_win", "avg_loss",
             "largest_win", "largest_loss",
             "net_pnl_pips", "avg_trade_pips", "strategy_id", "config_hash",
@@ -344,7 +344,7 @@ class TestBacktesterLiveE2E:
 
     @pytest.mark.regression
     def test_regression_equity_curve_has_unrealized_pnl(self):
-        """Regression: equity curve must include unrealized_pnl and use drawdown_pct
+        """Regression: equity curve must include unrealized_pnl and use drawdown_pips
         not drawdown_pips (H1/AC#6)."""
         result = self._run_backtester()
         assert result.returncode == 0
@@ -352,14 +352,14 @@ class TestBacktesterLiveE2E:
         eq_table = ipc.open_file(str(self.output_dir / "equity-curve.arrow")).read_all()
         assert "unrealized_pnl" in eq_table.column_names, \
             "Missing unrealized_pnl — was computed but not written to output"
-        assert "drawdown_pct" in eq_table.column_names, \
-            "drawdown column should be named drawdown_pct (percentage), not drawdown_pips"
+        assert "drawdown_pips" in eq_table.column_names, \
+            "drawdown column should be named drawdown_pips (percentage), not drawdown_pips"
         assert "drawdown_pips" not in eq_table.column_names, \
-            "drawdown_pips is a misnomer — the value is a percentage, rename to drawdown_pct"
+            "drawdown_pips is a misnomer — the value is a percentage, rename to drawdown_pips"
 
     @pytest.mark.regression
     def test_regression_metrics_has_all_ac7_fields(self):
-        """Regression: metrics output must include r_squared, max_drawdown_pct,
+        """Regression: metrics output must include r_squared, max_drawdown_pips,
         max_drawdown_duration_bars, avg_trade_duration_bars, avg_win, avg_loss,
         largest_win, largest_loss — not just the simplified subset (C5/AC#7)."""
         result = self._run_backtester()
@@ -367,7 +367,7 @@ class TestBacktesterLiveE2E:
 
         metrics = ipc.open_file(str(self.output_dir / "metrics.arrow")).read_all()
         required_fields = [
-            "r_squared", "max_drawdown_pct", "max_drawdown_duration_bars",
+            "r_squared", "max_drawdown_pips", "max_drawdown_duration_bars",
             "avg_trade_duration_bars", "avg_win", "avg_loss",
             "largest_win", "largest_loss",
         ]

@@ -153,7 +153,7 @@ fn build_equity_curve_batch(result: &BacktestResult) -> Result<RecordBatch, Back
         Field::new("timestamp", DataType::Int64, false),
         Field::new("equity_pips", DataType::Float64, false),
         Field::new("unrealized_pnl", DataType::Float64, false),
-        Field::new("drawdown_pct", DataType::Float64, false),
+        Field::new("drawdown_pips", DataType::Float64, false),
         Field::new("open_trades", DataType::Int64, false),
     ]));
 
@@ -168,7 +168,7 @@ fn build_equity_curve_batch(result: &BacktestResult) -> Result<RecordBatch, Back
         timestamps.append_value(result.equity_timestamps[i]);
         equities.append_value(result.equity_curve[i].equity);
         unrealized.append_value(result.equity_unrealized[i]);
-        drawdowns.append_value(result.equity_drawdown_pct[i]);
+        drawdowns.append_value(result.equity_drawdown_pips[i]);
         open_trades.append_value(result.equity_open_trades[i]);
     }
 
@@ -197,7 +197,6 @@ fn build_metrics_batch(
         Field::new("sharpe_ratio", DataType::Float64, false),
         Field::new("r_squared", DataType::Float64, false),
         Field::new("max_drawdown_pips", DataType::Float64, false),
-        Field::new("max_drawdown_pct", DataType::Float64, false),
         Field::new("max_drawdown_duration_bars", DataType::Int64, false),
         Field::new("avg_trade_duration_bars", DataType::Float64, false),
         Field::new("avg_win", DataType::Float64, false),
@@ -227,7 +226,6 @@ fn build_metrics_batch(
         Arc::new(Float64Array::from(vec![m.sharpe_ratio])),
         Arc::new(Float64Array::from(vec![m.r_squared])),
         Arc::new(Float64Array::from(vec![m.max_drawdown_pips])),
-        Arc::new(Float64Array::from(vec![m.max_drawdown_pct])),
         Arc::new(Int64Array::from(vec![m.max_drawdown_duration_bars as i64])),
         Arc::new(Float64Array::from(vec![m.avg_trade_duration_bars])),
         Arc::new(Float64Array::from(vec![m.avg_win])),

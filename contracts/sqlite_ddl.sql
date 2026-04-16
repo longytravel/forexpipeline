@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS fold_scores (
     fold_end_bar    INTEGER NOT NULL,
     sharpe_ratio    REAL,
     profit_factor   REAL,
-    max_drawdown_pct REAL,
+    max_drawdown_pips REAL,
     total_trades    INTEGER,
     win_rate        REAL,
     total_pnl       REAL,

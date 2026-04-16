@@ -155,7 +155,7 @@ def generate_equity_curve(n_points: int = 1000) -> pa.Table:
         ("timestamp", pa.int64()),
         ("equity_pips", pa.float64()),
         ("unrealized_pnl", pa.float64()),
-        ("drawdown_pct", pa.float64()),
+        ("drawdown_pips", pa.float64()),
         ("open_trades", pa.int64()),
     ])
 
@@ -164,7 +164,7 @@ def generate_equity_curve(n_points: int = 1000) -> pa.Table:
             "timestamp": timestamps,
             "equity_pips": equities,
             "unrealized_pnl": unrealized,
-            "drawdown_pct": drawdowns,
+            "drawdown_pips": drawdowns,
             "open_trades": open_trades_list,
         },
         schema=schema,
@@ -182,7 +182,6 @@ def generate_metrics() -> pa.Table:
         ("sharpe_ratio", pa.float64()),
         ("r_squared", pa.float64()),
         ("max_drawdown_pips", pa.float64()),
-        ("max_drawdown_pct", pa.float64()),
         ("max_drawdown_duration_bars", pa.int64()),
         ("avg_trade_duration_bars", pa.float64()),
         ("avg_win", pa.float64()),
@@ -205,7 +204,6 @@ def generate_metrics() -> pa.Table:
             "sharpe_ratio": [0.82],
             "r_squared": [0.65],
             "max_drawdown_pips": [150.5],
-            "max_drawdown_pct": [12.3],
             "max_drawdown_duration_bars": [240],
             "avg_trade_duration_bars": [15.2],
             "avg_win": [25.3],

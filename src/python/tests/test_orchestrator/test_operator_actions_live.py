@@ -126,8 +126,8 @@ def _create_full_pipeline_state(
             },
             "metrics": evidence_metrics,
             "equity_curve_summary": [
-                {"timestamp": 1000000, "equity": 0.0, "drawdown_pct": 0.0},
-                {"timestamp": 2000000, "equity": 15.5, "drawdown_pct": 0.02},
+                {"timestamp": 1000000, "equity": 0.0, "drawdown_pips": 0.0},
+                {"timestamp": 2000000, "equity": 15.5, "drawdown_pips": 0.02},
             ],
             "equity_curve_full_path": f"artifacts/{strategy_id}/v001/backtest/equity-curve.arrow",
             "trade_distribution": {

@@ -51,7 +51,7 @@ pub fn compute_composite_score(
     sharpe: f64,
     r_squared: f64,
     profit_factor: f64,
-    max_dd_pct: f64,
+    max_dd_pips: f64,
     trade_count: u32,
     win_rate: f64,
 ) -> f64 {
@@ -64,7 +64,7 @@ pub fn compute_composite_score(
     let s_sharpe = clamp01(sharpe / 3.0);                               // [0, 3] -> [0, 1]
     let s_r2 = clamp01(r_squared);                                      // already [0, 1]
     let s_pf = clamp01(profit_factor / 5.0);                            // [0, 5] -> [0, 1]
-    let s_dd = clamp01(1.0 - (max_dd_pct / 50.0));                     // 0%=1.0, 50%=0.0 (inverted)
+    let s_dd = clamp01(1.0 - (max_dd_pips / 500.0));                    // 0 pips=1.0, 500 pips=0.0
     let s_trades = clamp01((trade_count as f64 - 30.0) / (200.0 - 30.0)); // [30, 200] -> [0, 1]
     let s_wr = clamp01(win_rate);                                       // already [0, 1]
 
@@ -89,7 +89,6 @@ pub struct Metrics {
     pub sharpe_ratio: f64,
     pub r_squared: f64,
     pub max_drawdown_pips: f64,
-    pub max_drawdown_pct: f64,
     pub max_drawdown_duration_bars: u64,
     pub total_trades: u64,
     pub avg_trade_duration_bars: f64,
@@ -125,7 +124,6 @@ pub fn compute_metrics(
             sharpe_ratio: 0.0,
             r_squared: 0.0,
             max_drawdown_pips: 0.0,
-            max_drawdown_pct: 0.0,
             max_drawdown_duration_bars: 0,
             total_trades: 0,
             avg_trade_duration_bars: 0.0,
@@ -192,8 +190,8 @@ pub fn compute_metrics(
     // R-squared: linear regression of equity curve
     let r_squared = compute_r_squared(equity_points);
 
-    // Max drawdown from equity points
-    let (dd_pips, dd_pct, dd_duration) = compute_max_drawdown(equity_points);
+    // Max drawdown from equity points (absolute pips only — see compute_max_drawdown).
+    let (dd_pips, dd_duration) = compute_max_drawdown(equity_points);
 
     Metrics {
         win_rate,
@@ -201,7 +199,6 @@ pub fn compute_metrics(
         sharpe_ratio,
         r_squared,
         max_drawdown_pips: dd_pips,
-        max_drawdown_pct: dd_pct,
         max_drawdown_duration_bars: dd_duration,
         total_trades,
         avg_trade_duration_bars,
@@ -242,19 +239,22 @@ fn compute_r_squared(points: &[EquityPoint]) -> f64 {
 }
 
 /// Compute max drawdown from equity points.
-/// Returns (max_dd_pips, max_dd_pct, max_dd_duration_bars).
+/// Returns (max_dd_pips, max_dd_duration_bars).
+///
+/// Drawdown is reported in absolute pips. Equity is tracked in pips from a
+/// zero base, so a percentage of peak has no meaningful denominator (a small
+/// initial peak produces huge, misleading percentages).
 ///
 /// Duration is measured as peak-to-recovery (or peak-to-end if no recovery),
 /// per AC #7: "longest bar count between peak and recovery to new peak."
-fn compute_max_drawdown(points: &[EquityPoint]) -> (f64, f64, u64) {
+fn compute_max_drawdown(points: &[EquityPoint]) -> (f64, u64) {
     if points.is_empty() {
-        return (0.0, 0.0, 0);
+        return (0.0, 0);
     }
 
     let mut peak = points[0].equity;
     let mut peak_bar = points[0].bar_index;
     let mut max_dd_pips = 0.0_f64;
-    let mut max_dd_pct = 0.0_f64;
     let mut max_dd_duration: u64 = 0;
     // Track current drawdown duration: bars since last peak
     let mut current_dd_start_bar = points[0].bar_index;
@@ -282,17 +282,8 @@ fn compute_max_drawdown(points: &[EquityPoint]) -> (f64, f64, u64) {
         }
 
         let dd_pips = peak - point.equity;
-        let dd_pct = if peak > 0.0 {
-            (dd_pips / peak) * 100.0
-        } else {
-            0.0
-        };
-
         if dd_pips > max_dd_pips {
             max_dd_pips = dd_pips;
-        }
-        if dd_pct > max_dd_pct {
-            max_dd_pct = dd_pct;
         }
     }
 
@@ -306,7 +297,7 @@ fn compute_max_drawdown(points: &[EquityPoint]) -> (f64, f64, u64) {
         }
     }
 
-    (max_dd_pips, max_dd_pct, max_dd_duration)
+    (max_dd_pips, max_dd_duration)
 }
 
 #[cfg(test)]
@@ -409,11 +400,10 @@ mod tests {
         let eq = make_equity_points(&[
             (0, 0.0), (1, 10.0), (2, 20.0), (3, 15.0), (4, 10.0), (5, 25.0), (6, 30.0),
         ]);
-        let (dd_pips, dd_pct, dd_dur) = super::compute_max_drawdown(&eq);
-        // Max DD = 20 - 10 = 10 pips, pct = 10/20 * 100 = 50%
+        let (dd_pips, dd_dur) = super::compute_max_drawdown(&eq);
+        // Max DD = 20 - 10 = 10 pips (absolute — equity has no percent base)
         // Duration: peak at bar 2, recovery at bar 5 (25 > 20) → 5-2=3 bars
         assert!((dd_pips - 10.0).abs() < 1e-10);
-        assert!((dd_pct - 50.0).abs() < 1e-10);
         assert_eq!(dd_dur, 3);
     }
 
@@ -451,9 +441,9 @@ mod tests {
 
     #[test]
     fn test_composite_score_perfect_metrics() {
-        // Sharpe=2.0, R²=0.95, PF=3.0, DD=5%, 150 trades, 60% win
-        let score = super::compute_composite_score(2.0, 0.95, 3.0, 5.0, 150, 0.60);
-        // Each component: sharpe=2/3≈0.667, r2=0.95, pf=3/5=0.6, dd=1-5/50=0.9, trades=(150-30)/170≈0.706, wr=0.6
+        // Sharpe=2.0, R²=0.95, PF=3.0, DD=50 pips, 150 trades, 60% win
+        let score = super::compute_composite_score(2.0, 0.95, 3.0, 50.0, 150, 0.60);
+        // Each component: sharpe=2/3≈0.667, r2=0.95, pf=3/5=0.6, dd=1-50/500=0.9, trades=(150-30)/170≈0.706, wr=0.6
         // Weighted: 0.25*0.667 + 0.25*0.95 + 0.15*0.6 + 0.15*0.9 + 0.10*0.706 + 0.10*0.6
         let expected = 0.25 * (2.0 / 3.0) + 0.25 * 0.95 + 0.15 * 0.6 + 0.15 * 0.9 + 0.10 * (120.0 / 170.0) + 0.10 * 0.6;
         assert!((score - expected).abs() < 1e-10, "got {score}, expected {expected}");
@@ -470,22 +460,22 @@ mod tests {
     #[test]
     fn test_composite_score_negative_sharpe_gate() {
         // Negative Sharpe -> hard gate -> score = 0 regardless of other metrics
-        let score = super::compute_composite_score(-0.5, 0.95, 3.0, 5.0, 150, 0.60);
+        let score = super::compute_composite_score(-0.5, 0.95, 3.0, 50.0, 150, 0.60);
         assert_eq!(score, 0.0, "Negative Sharpe should gate to 0, got {score}");
     }
 
     #[test]
     fn test_composite_score_high_dd_penalty() {
-        // Good Sharpe but terrible drawdown
-        let good_dd = super::compute_composite_score(1.5, 0.8, 2.0, 10.0, 100, 0.55);
-        let bad_dd = super::compute_composite_score(1.5, 0.8, 2.0, 45.0, 100, 0.55);
+        // Good Sharpe but terrible drawdown (100 pips vs 450 pips)
+        let good_dd = super::compute_composite_score(1.5, 0.8, 2.0, 100.0, 100, 0.55);
+        let bad_dd = super::compute_composite_score(1.5, 0.8, 2.0, 450.0, 100, 0.55);
         assert!(good_dd > bad_dd, "High DD should reduce score: good={good_dd} bad={bad_dd}");
     }
 
     #[test]
     fn test_composite_score_clamping() {
-        // Extreme values should be clamped
-        let score = super::compute_composite_score(10.0, 1.5, 100.0, -5.0, 1000, 1.5);
+        // Extreme values should be clamped (negative DD is nonsensical but must clamp)
+        let score = super::compute_composite_score(10.0, 1.5, 100.0, -50.0, 1000, 1.5);
         assert!(score <= 1.0, "Composite must be <= 1.0, got {score}");
         assert!(score >= 0.0, "Composite must be >= 0.0, got {score}");
     }

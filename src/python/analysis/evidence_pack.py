@@ -276,12 +276,12 @@ def _downsample_equity_curve(
             batch = reader.get_batch(i)
             ts_col = batch.column("timestamp").to_pylist()
             eq_col = batch.column("equity_pips").to_pylist()
-            dd_col = batch.column("drawdown_pct").to_pylist()
+            dd_col = batch.column("drawdown_pips").to_pylist()
             for row_idx in range(batch.num_rows):
                 points.append({
                     "timestamp": ts_col[row_idx],
                     "equity": eq_col[row_idx],
-                    "drawdown_pct": dd_col[row_idx],
+                    "drawdown_pips": dd_col[row_idx],
                 })
         return points
 
@@ -308,12 +308,12 @@ def _downsample_equity_curve(
             # Convert columns to Python lists once per batch (not per-row)
             ts_col = batch.column("timestamp").to_pylist()
             eq_col = batch.column("equity_pips").to_pylist()
-            dd_col = batch.column("drawdown_pct").to_pylist()
+            dd_col = batch.column("drawdown_pips").to_pylist()
             for local_idx in local_targets:
                 sampled.append({
                     "timestamp": ts_col[local_idx],
                     "equity": eq_col[local_idx],
-                    "drawdown_pct": dd_col[local_idx],
+                    "drawdown_pips": dd_col[local_idx],
                 })
 
         global_offset = batch_end

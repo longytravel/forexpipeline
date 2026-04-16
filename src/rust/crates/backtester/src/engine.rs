@@ -33,7 +33,7 @@ pub struct BacktestResult {
     pub equity_curve: Vec<EquityPoint>,
     pub equity_timestamps: Vec<i64>,
     pub equity_unrealized: Vec<f64>,
-    pub equity_drawdown_pct: Vec<f64>,
+    pub equity_drawdown_pips: Vec<f64>,
     pub equity_open_trades: Vec<i64>,
     pub metrics: Metrics,
     pub total_bars: u64,
@@ -181,7 +181,7 @@ fn run_backtest_inner(
     let mut equity_points: Vec<EquityPoint> = Vec::with_capacity(bar_count);
     let mut equity_timestamps: Vec<i64> = Vec::with_capacity(bar_count);
     let mut equity_unrealized: Vec<f64> = Vec::with_capacity(bar_count);
-    let mut equity_drawdown_pct: Vec<f64> = Vec::with_capacity(bar_count);
+    let mut equity_drawdown_pips: Vec<f64> = Vec::with_capacity(bar_count);
     let mut equity_open_trades: Vec<i64> = Vec::with_capacity(bar_count);
 
     let mut position_manager = PositionManager::new();
@@ -305,7 +305,7 @@ fn run_backtest_inner(
                 record_equity_point(
                     &bar, closed_pnl, unrealized, &mut peak_equity,
                     &mut equity_points, &mut equity_timestamps,
-                    &mut equity_unrealized, &mut equity_drawdown_pct,
+                    &mut equity_unrealized, &mut equity_drawdown_pips,
                     &mut equity_open_trades, position_manager.has_position(),
                 );
                 continue;
@@ -338,7 +338,7 @@ fn run_backtest_inner(
             record_equity_point(
                 &bar, closed_pnl, unrealized, &mut peak_equity,
                 &mut equity_points, &mut equity_timestamps,
-                &mut equity_unrealized, &mut equity_drawdown_pct,
+                &mut equity_unrealized, &mut equity_drawdown_pips,
                 &mut equity_open_trades, position_manager.has_position(),
             );
             continue;
@@ -455,7 +455,7 @@ fn run_backtest_inner(
         record_equity_point(
             &bar, closed_pnl, unrealized, &mut peak_equity,
             &mut equity_points, &mut equity_timestamps,
-            &mut equity_unrealized, &mut equity_drawdown_pct,
+            &mut equity_unrealized, &mut equity_drawdown_pips,
             &mut equity_open_trades, position_manager.has_position(),
         );
 
@@ -516,7 +516,7 @@ fn run_backtest_inner(
         record_equity_point(
             &last_bar, closed_pnl, 0.0, &mut peak_equity,
             &mut equity_points, &mut equity_timestamps,
-            &mut equity_unrealized, &mut equity_drawdown_pct,
+            &mut equity_unrealized, &mut equity_drawdown_pips,
             &mut equity_open_trades, false,
         );
     }
@@ -535,7 +535,7 @@ fn run_backtest_inner(
         equity_curve: equity_points,
         equity_timestamps,
         equity_unrealized,
-        equity_drawdown_pct,
+        equity_drawdown_pips,
         equity_open_trades,
         metrics,
         total_bars: bar_count as u64,
@@ -780,7 +780,7 @@ fn record_equity_point(
     equity_points: &mut Vec<EquityPoint>,
     timestamps: &mut Vec<i64>,
     unrealized_vec: &mut Vec<f64>,
-    drawdown_pct_vec: &mut Vec<f64>,
+    drawdown_pips_vec: &mut Vec<f64>,
     open_trades_vec: &mut Vec<i64>,
     has_position: bool,
 ) {
@@ -789,11 +789,9 @@ fn record_equity_point(
         *peak_equity = equity;
     }
 
-    let dd_pct = if *peak_equity > 0.0 {
-        (*peak_equity - equity) / *peak_equity * 100.0
-    } else {
-        0.0
-    };
+    // Drawdown reported in absolute pips. Equity is tracked in pips from a
+    // zero base, so a percentage has no meaningful denominator.
+    let dd_pips = (*peak_equity - equity).max(0.0);
 
     equity_points.push(EquityPoint {
         bar_index: bar.index,
@@ -801,7 +799,7 @@ fn record_equity_point(
     });
     timestamps.push(bar.timestamp);
     unrealized_vec.push(unrealized);
-    drawdown_pct_vec.push(dd_pct);
+    drawdown_pips_vec.push(dd_pips);
     open_trades_vec.push(if has_position { 1 } else { 0 });
 }
 

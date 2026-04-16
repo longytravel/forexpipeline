@@ -106,7 +106,7 @@ class TestAssembleEvidencePack:
             point = pack.equity_curve_summary[0]
             assert "timestamp" in point
             assert "equity" in point
-            assert "drawdown_pct" in point
+            assert "drawdown_pips" in point
 
     def test_evidence_pack_artifact_filenames(self, tmp_path):
         """Verify trade-log.arrow and equity-curve.arrow (hyphenated)."""
@@ -195,7 +195,7 @@ class TestRegressionH1StreamingDownsample:
         for p in result:
             assert "timestamp" in p
             assert "equity" in p
-            assert "drawdown_pct" in p
+            assert "drawdown_pips" in p
 
     @pytest.mark.regression
     def test_downsample_small_curve_returns_all(self, tmp_path):

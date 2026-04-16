@@ -59,7 +59,7 @@ class TestGenerateNarrative:
         assert "equity curve" in result.overview.lower()
         # Metrics dict should contain all required keys
         required_keys = {"win_rate", "profit_factor", "sharpe_ratio",
-                         "max_drawdown_pct", "total_trades"}
+                         "max_drawdown_pips", "total_trades"}
         assert required_keys.issubset(result.metrics.keys())
 
     def test_generate_narrative_empty_trades(self, tmp_path):

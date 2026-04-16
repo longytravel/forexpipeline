@@ -159,13 +159,14 @@ def _generate_overview(metrics: dict[str, Any], session_breakdown: dict) -> str:
     else:
         trend = "flat"
 
-    # Drawdown profile
-    max_dd = metrics["max_drawdown_pct"]
-    if max_dd < 5:
+    # Drawdown profile — thresholds in pips (equity has a zero base, so
+    # percentages aren't meaningful).
+    max_dd = metrics["max_drawdown_pips"]
+    if max_dd < 20:
         dd_desc = "minimal"
-    elif max_dd < 15:
+    elif max_dd < 50:
         dd_desc = "moderate"
-    elif max_dd < 30:
+    elif max_dd < 150:
         dd_desc = "significant"
     else:
         dd_desc = "severe"
@@ -183,7 +184,7 @@ def _generate_overview(metrics: dict[str, Any], session_breakdown: dict) -> str:
 
     overview = (
         f"The equity curve shows a {trend} pattern across {total} trades "
-        f"with {dd_desc} drawdown (max {max_dd:.1f}%). "
+        f"with {dd_desc} drawdown (max {max_dd:.1f} pips). "
         f"Trades are distributed across {len(active_sessions)} session(s), "
         f"with {dominant.replace('_', ' ')} accounting for {dominant_pct:.0f}% of activity. "
         f"Overall profit factor is {metrics['profit_factor']:.2f} "
@@ -203,8 +204,8 @@ def _identify_strengths(metrics: dict[str, Any], session_breakdown: dict) -> lis
     if metrics["profit_factor"] >= 1.5 and metrics["profit_factor"] != float("inf"):
         strengths.append(f"Strong profit factor ({metrics['profit_factor']:.2f})")
 
-    if metrics["max_drawdown_pct"] < 10:
-        strengths.append(f"Low maximum drawdown ({metrics['max_drawdown_pct']:.1f}%)")
+    if metrics["max_drawdown_pips"] < 30:
+        strengths.append(f"Low maximum drawdown ({metrics['max_drawdown_pips']:.1f} pips)")
 
     if metrics["sharpe_ratio"] > 1.0:
         strengths.append(f"Good risk-adjusted returns (Sharpe {metrics['sharpe_ratio']:.2f})")
@@ -232,8 +233,8 @@ def _identify_weaknesses(metrics: dict[str, Any], session_breakdown: dict) -> li
     if 0 < metrics["profit_factor"] < 1.0:
         weaknesses.append(f"Unprofitable (profit factor {metrics['profit_factor']:.2f})")
 
-    if metrics["max_drawdown_pct"] > 25:
-        weaknesses.append(f"High maximum drawdown ({metrics['max_drawdown_pct']:.1f}%)")
+    if metrics["max_drawdown_pips"] > 100:
+        weaknesses.append(f"High maximum drawdown ({metrics['max_drawdown_pips']:.1f} pips)")
 
     if metrics["sharpe_ratio"] < 0.5 and metrics["total_trades"] > 30:
         weaknesses.append(f"Weak risk-adjusted returns (Sharpe {metrics['sharpe_ratio']:.2f})")
@@ -266,15 +267,15 @@ def _assess_risk(metrics: dict[str, Any]) -> str:
     if total == 0:
         return "Insufficient data — no trades executed."
 
-    dd = metrics["max_drawdown_pct"]
+    dd = metrics["max_drawdown_pips"]
     sharpe = metrics["sharpe_ratio"]
     pf = metrics["profit_factor"]
 
     risk_factors = []
 
-    if dd > 30:
+    if dd > 200:
         risk_factors.append("extreme drawdown")
-    elif dd > 20:
+    elif dd > 100:
         risk_factors.append("high drawdown")
 
     if sharpe < 0:

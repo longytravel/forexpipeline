@@ -356,7 +356,7 @@ struct BatchCandidateState {
     sum_losses: Vec<f64>,     // absolute value of losing trades
     cum_pnl: Vec<f64>,        // running cumulative PnL (equity)
     peak_equity: Vec<f64>,    // highest cumulative PnL seen
-    max_dd_pct: Vec<f64>,     // maximum drawdown percentage from peak
+    max_dd_pips: Vec<f64>,    // maximum drawdown in absolute pips from peak
     // Online R² accumulators (x = trade index, y = cumulative PnL at trade)
     r2_sum_y: Vec<f64>,       // Σ cum_pnl_i
     r2_sum_y_sq: Vec<f64>,    // Σ cum_pnl_i²
@@ -409,7 +409,7 @@ impl BatchCandidateState {
             sum_losses: vec![0.0; n],
             cum_pnl: vec![0.0; n],
             peak_equity: vec![0.0; n],
-            max_dd_pct: vec![0.0; n],
+            max_dd_pips: vec![0.0; n],
             r2_sum_y: vec![0.0; n],
             r2_sum_y_sq: vec![0.0; n],
             r2_sum_xy: vec![0.0; n],
@@ -442,15 +442,14 @@ impl BatchCandidateState {
         self.cum_pnl[i] += pnl;
         let equity = self.cum_pnl[i];
 
-        // Drawdown tracking
+        // Drawdown tracking — absolute pips only (equity starts at 0 so % of
+        // peak is meaningless for small peaks).
         if equity > self.peak_equity[i] {
             self.peak_equity[i] = equity;
         }
-        if self.peak_equity[i] > 0.0 {
-            let dd_pct = ((self.peak_equity[i] - equity) / self.peak_equity[i]) * 100.0;
-            if dd_pct > self.max_dd_pct[i] {
-                self.max_dd_pct[i] = dd_pct;
-            }
+        let dd_pips = self.peak_equity[i] - equity;
+        if dd_pips > self.max_dd_pips[i] {
+            self.max_dd_pips[i] = dd_pips;
         }
 
         // Online R² accumulators: x = trade_index (0-based), y = cum_pnl
@@ -706,7 +705,7 @@ impl BatchCandidateState {
             sharpe,
             r_squared,
             profit_factor,
-            self.max_dd_pct[i],
+            self.max_dd_pips[i],
             count,
             win_rate,
         )

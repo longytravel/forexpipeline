@@ -166,7 +166,7 @@ def create_equity_curve_arrow(path: Path, num_points: int = 1000) -> Path:
         "timestamp": pa.array(timestamps, type=pa.int64()),
         "equity_pips": pa.array(equities, type=pa.float64()),
         "unrealized_pnl": pa.array(unrealized, type=pa.float64()),
-        "drawdown_pct": pa.array(drawdowns, type=pa.float64()),
+        "drawdown_pips": pa.array(drawdowns, type=pa.float64()),
         "open_trades": pa.array(open_trades_col, type=pa.int64()),
     })
 

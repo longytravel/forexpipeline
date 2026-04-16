@@ -55,7 +55,7 @@ columns = [
   { name = "timestamp", type = "int64", nullable = false, description = "Epoch microseconds UTC" },
   { name = "equity_pips", type = "float64", nullable = false, description = "Cumulative equity in pips (closed + unrealized)" },
   { name = "unrealized_pnl", type = "float64", nullable = false, description = "Unrealized P&L of open position in pips" },
-  { name = "drawdown_pct", type = "float64", nullable = false, description = "Current drawdown from peak as percentage" },
+  { name = "drawdown_pips", type = "float64", nullable = false, description = "Current drawdown from peak in absolute pips" },
   { name = "open_trades", type = "int64", nullable = false, description = "Number of open trades at this bar" },
 ]
 
@@ -70,7 +70,6 @@ columns = [
   { name = "sharpe_ratio", type = "float64", nullable = false },
   { name = "r_squared", type = "float64", nullable = false },
   { name = "max_drawdown_pips", type = "float64", nullable = false },
-  { name = "max_drawdown_pct", type = "float64", nullable = false },
   { name = "max_drawdown_duration_bars", type = "int64", nullable = false },
   { name = "avg_trade_duration_bars", type = "float64", nullable = false },
   { name = "avg_win", type = "float64", nullable = false },

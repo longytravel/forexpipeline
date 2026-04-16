@@ -25,7 +25,7 @@ logger = get_logger("pipeline.analysis.anomaly_detector")
 ANOMALY_THRESHOLDS: dict[str, Any] = {
     "low_trade_count": 30,
     "zero_trade_window_years": 2,
-    "perfect_equity_max_dd_pct": 1.0,
+    "perfect_equity_max_dd_pips": 5.0,
     "perfect_equity_min_trades": 100,
     "extreme_profit_factor": 5.0,
     "trade_clustering_pct": 0.50,
@@ -279,7 +279,7 @@ def _check_perfect_equity(
 ) -> AnomalyFlag | None:
     """Max DD < threshold with > min_trades trades -> ERROR (suspiciously perfect)."""
     min_trades = cfg["perfect_equity_min_trades"]
-    max_dd_threshold = cfg["perfect_equity_max_dd_pct"]
+    max_dd_threshold = cfg["perfect_equity_max_dd_pips"]
 
     if len(trades) <= min_trades:
         return None
@@ -287,31 +287,30 @@ def _check_perfect_equity(
     pnls = [t["pnl_pips"] for t in trades]
     cumulative = 0.0
     peak = 0.0
-    max_dd_pct = 0.0
+    max_dd_pips = 0.0
 
     for pnl in pnls:
         cumulative += pnl
         if cumulative > peak:
             peak = cumulative
-        if peak > 0:
-            dd = (peak - cumulative) / peak * 100.0
-            if dd > max_dd_pct:
-                max_dd_pct = dd
+        dd = peak - cumulative
+        if dd > max_dd_pips:
+            max_dd_pips = dd
 
-    if max_dd_pct >= max_dd_threshold:
+    if max_dd_pips >= max_dd_threshold:
         return None
 
     return AnomalyFlag(
         type=AnomalyType.PERFECT_EQUITY,
         severity=Severity.ERROR,
         description=(
-            f"Suspiciously perfect equity curve: max drawdown {max_dd_pct:.2f}% "
-            f"with {len(trades)} trades (< {max_dd_threshold}% threshold)"
+            f"Suspiciously perfect equity curve: max drawdown {max_dd_pips:.2f} pips "
+            f"with {len(trades)} trades (< {max_dd_threshold} pip threshold)"
         ),
         evidence={
-            "max_drawdown_pct": round(max_dd_pct, 4),
+            "max_drawdown_pips": round(max_dd_pips, 4),
             "trade_count": len(trades),
-            "threshold_dd_pct": max_dd_threshold,
+            "threshold_dd_pips": max_dd_threshold,
             "threshold_min_trades": min_trades,
         },
         recommendation=(

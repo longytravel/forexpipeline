@@ -20,7 +20,7 @@ def compute_metrics(trades: list[dict[str, Any]], run_meta: dict[str, Any] | Non
 
     Returns:
         Dict with keys: win_rate, profit_factor, sharpe_ratio,
-        max_drawdown_pct, total_trades, avg_trade_pnl, total_pnl,
+        max_drawdown_pips, total_trades, avg_trade_pnl, total_pnl,
         avg_trade_duration.
     """
     total_trades = len(trades)
@@ -30,7 +30,7 @@ def compute_metrics(trades: list[dict[str, Any]], run_meta: dict[str, Any] | Non
             "win_rate": 0.0,
             "profit_factor": 0.0,
             "sharpe_ratio": 0.0,
-            "max_drawdown_pct": 0.0,
+            "max_drawdown_pips": 0.0,
             "total_trades": 0,
             "avg_trade_pnl": 0.0,
             "total_pnl": 0.0,
@@ -55,8 +55,10 @@ def compute_metrics(trades: list[dict[str, Any]], run_meta: dict[str, Any] | Non
     # Sharpe ratio: mean(pnl) / std(pnl) * sqrt(total_trades)
     sharpe_ratio = _compute_sharpe(pnls)
 
-    # Max drawdown as percentage of peak equity
-    max_drawdown_pct = _compute_max_drawdown_pct(pnls)
+    # Max drawdown in absolute pips from peak cumulative equity.
+    # We intentionally report pips (not %) because equity is tracked in pips
+    # from a zero base — a percentage has no meaningful denominator.
+    max_drawdown_pips = _compute_max_drawdown_pips(pnls)
 
     # Average trade duration in hours (if entry/exit times available)
     avg_trade_duration = _compute_avg_duration(trades)
@@ -65,7 +67,7 @@ def compute_metrics(trades: list[dict[str, Any]], run_meta: dict[str, Any] | Non
         "win_rate": round(win_rate, 4),
         "profit_factor": round(profit_factor, 4) if math.isfinite(profit_factor) else profit_factor,
         "sharpe_ratio": round(sharpe_ratio, 4),
-        "max_drawdown_pct": round(max_drawdown_pct, 4),
+        "max_drawdown_pips": round(max_drawdown_pips, 4),
         "total_trades": total_trades,
         "avg_trade_pnl": round(avg_trade_pnl, 4),
         "total_pnl": round(total_pnl, 4),
@@ -93,29 +95,29 @@ def _compute_sharpe(pnls: list[float]) -> float:
     return (mean / std) * math.sqrt(n)
 
 
-def _compute_max_drawdown_pct(pnls: list[float]) -> float:
-    """Compute max drawdown as percentage of peak cumulative equity.
+def _compute_max_drawdown_pips(pnls: list[float]) -> float:
+    """Compute max drawdown in absolute pips from peak cumulative equity.
 
-    Tracks peak-to-trough drawdown from cumulative PnL curve.
-    Returns 0.0 when no drawdown exists.
+    Tracks peak-to-trough drawdown from cumulative PnL curve, reported as
+    an absolute pip count (not a percentage — equity has a zero base, so
+    percentages blow up when peak is small).
     """
     if not pnls:
         return 0.0
 
     cumulative = 0.0
     peak = 0.0
-    max_dd_pct = 0.0
+    max_dd_pips = 0.0
 
     for pnl in pnls:
         cumulative += pnl
         if cumulative > peak:
             peak = cumulative
-        if peak > 0:
-            dd_pct = (peak - cumulative) / peak * 100.0
-            if dd_pct > max_dd_pct:
-                max_dd_pct = dd_pct
+        dd_pips = peak - cumulative
+        if dd_pips > max_dd_pips:
+            max_dd_pips = dd_pips
 
-    return max_dd_pct
+    return max_dd_pips
 
 
 def _compute_avg_duration(trades: list[dict[str, Any]]) -> float:

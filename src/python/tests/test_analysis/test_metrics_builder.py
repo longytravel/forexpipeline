@@ -28,7 +28,7 @@ class TestComputeMetricsBasic:
         # Profit factor: (10+8+15) / (5+3) = 33/8 = 4.125
         assert m["profit_factor"] == pytest.approx(4.125, abs=0.01)
         assert m["sharpe_ratio"] > 0  # Positive expectancy
-        assert m["max_drawdown_pct"] >= 0
+        assert m["max_drawdown_pips"] >= 0
         assert m["avg_trade_duration"] > 0
 
     def test_compute_metrics_empty_trades(self):
@@ -38,7 +38,7 @@ class TestComputeMetricsBasic:
         assert m["win_rate"] == 0.0
         assert m["profit_factor"] == 0.0
         assert m["sharpe_ratio"] == 0.0
-        assert m["max_drawdown_pct"] == 0.0
+        assert m["max_drawdown_pips"] == 0.0
         assert m["avg_trade_pnl"] == 0.0
         assert m["total_pnl"] == 0.0
         assert m["avg_trade_duration"] == 0.0

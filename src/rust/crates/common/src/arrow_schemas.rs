@@ -70,7 +70,7 @@ pub static EQUITY_CURVE_COLUMNS: &[ColumnDef] = &[
     ColumnDef { name: "timestamp",      arrow_type: ArrowType::Int64,   nullable: false },
     ColumnDef { name: "equity_pips",    arrow_type: ArrowType::Float64, nullable: false },
     ColumnDef { name: "unrealized_pnl", arrow_type: ArrowType::Float64, nullable: false },
-    ColumnDef { name: "drawdown_pct",   arrow_type: ArrowType::Float64, nullable: false },
+    ColumnDef { name: "drawdown_pips",  arrow_type: ArrowType::Float64, nullable: false },
     ColumnDef { name: "open_trades",    arrow_type: ArrowType::Int64,   nullable: false },
 ];
 
@@ -93,7 +93,6 @@ pub static METRICS_COLUMNS: &[ColumnDef] = &[
     ColumnDef { name: "sharpe_ratio",              arrow_type: ArrowType::Float64, nullable: false },
     ColumnDef { name: "r_squared",                 arrow_type: ArrowType::Float64, nullable: false },
     ColumnDef { name: "max_drawdown_pips",         arrow_type: ArrowType::Float64, nullable: false },
-    ColumnDef { name: "max_drawdown_pct",          arrow_type: ArrowType::Float64, nullable: false },
     ColumnDef { name: "max_drawdown_duration_bars", arrow_type: ArrowType::Int64,  nullable: false },
     ColumnDef { name: "avg_trade_duration_bars",   arrow_type: ArrowType::Float64, nullable: false },
     ColumnDef { name: "avg_win",                   arrow_type: ArrowType::Float64, nullable: false },
@@ -163,7 +162,7 @@ mod tests {
     #[test]
     fn test_equity_curve_schema() {
         let names: Vec<&str> = EQUITY_CURVE_COLUMNS.iter().map(|c| c.name).collect();
-        assert_eq!(names, vec!["timestamp", "equity_pips", "unrealized_pnl", "drawdown_pct", "open_trades"]);
+        assert_eq!(names, vec!["timestamp", "equity_pips", "unrealized_pnl", "drawdown_pips", "open_trades"]);
     }
 
     #[test]
@@ -172,7 +171,7 @@ mod tests {
         assert!(names.contains(&"total_trades"));
         assert!(names.contains(&"sharpe_ratio"));
         assert!(names.contains(&"r_squared"));
-        assert!(names.contains(&"max_drawdown_pct"));
+        assert!(names.contains(&"max_drawdown_pips"));
         assert!(names.contains(&"max_drawdown_duration_bars"));
         assert!(names.contains(&"avg_trade_duration_bars"));
         assert!(names.contains(&"avg_win"));

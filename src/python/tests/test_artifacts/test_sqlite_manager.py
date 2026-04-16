@@ -112,7 +112,7 @@ class TestSQLiteManager:
         expected = {
             "id", "backtest_run_id", "candidate_id", "fold_id",
             "fold_start_bar", "fold_end_bar", "sharpe_ratio",
-            "profit_factor", "max_drawdown_pct", "total_trades",
+            "profit_factor", "max_drawdown_pips", "total_trades",
             "win_rate", "total_pnl",
         }
         assert expected == col_names

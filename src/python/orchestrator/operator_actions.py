@@ -72,7 +72,11 @@ def _state_path(strategy_id: str, artifacts_dir: Path) -> Path:
 def _find_latest_evidence_pack(
     strategy_id: str, artifacts_dir: Path,
 ) -> str | None:
-    """Find the latest evidence pack path for a strategy by scanning versions."""
+    """Find the latest evidence pack path for a strategy by scanning versions.
+
+    Returns an absolute path string so downstream loaders don't have to guess
+    whether the ref is project-root-relative or artifacts-dir-relative.
+    """
     strategy_dir = artifacts_dir / strategy_id
     if not strategy_dir.exists():
         return None
@@ -85,7 +89,7 @@ def _find_latest_evidence_pack(
     for vdir in version_dirs:
         pack_path = vdir / "backtest" / "evidence_pack.json"
         if pack_path.exists():
-            return str(pack_path)
+            return str(pack_path.resolve())
 
     return None
 
@@ -371,7 +375,16 @@ def load_evidence_pack(
     if evidence_pack_ref is not None:
         pack_path = Path(evidence_pack_ref)
         if not pack_path.is_absolute():
-            pack_path = artifacts_dir / pack_path
+            # Relative ref may already start with the artifacts dir name
+            # (project-root-relative) or be artifacts-dir-relative. Try both.
+            as_project_relative = Path.cwd() / pack_path
+            as_artifacts_relative = artifacts_dir / pack_path
+            if as_project_relative.exists():
+                pack_path = as_project_relative
+            elif as_artifacts_relative.exists():
+                pack_path = as_artifacts_relative
+            else:
+                pack_path = as_project_relative  # fall through to exists() check
     else:
         ref = _find_latest_evidence_pack(strategy_id, artifacts_dir)
         if ref is None:

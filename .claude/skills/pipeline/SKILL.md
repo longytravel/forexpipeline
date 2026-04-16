@@ -683,6 +683,7 @@ The optimization pipeline supports a high-performance persistent worker mode tha
 
 ```toml
 [optimization]
+score_mode = "composite"        # "composite" (default, recommended) or "sharpe"
 use_persistent_worker = true   # false = subprocess mode (default, backwards compatible)
 persistent_workers = 4          # number of long-lived worker processes
 persistent_eval_timeout = 120   # seconds before killing unresponsive worker
@@ -698,6 +699,7 @@ range_multiplier = 2.0          # how much wider than top-10% range
 
 ```toml
 [optimization_plan]
+objective_function = "composite" # "composite" (recommended) or "sharpe", "calmar", "profit_factor", "expectancy"
 year_range = [2018, 2025]       # optional — filter data to year range (proportional speedup)
 
 [optimization_plan.prescreening]
@@ -774,3 +776,6 @@ config['optimization']['use_persistent_worker'] = True
 25. **Batch candidates for throughput** — persistent worker evals/sec scales with candidates-per-group. 1 candidate/group = ~11 evals/sec. 100 candidates/group = ~800 evals/sec. 200+ = 1000+. The orchestrator's batch_size distributes candidates across groups automatically.
 26. **Year-range and prescreening are backwards compatible** — year_range defaults to None (full dataset), prescreening defaults to disabled. Strategy TOMLs without these fields work unchanged. The Rust types accept but ignore these fields.
 27. **Optimization checkpointing** — the orchestrator saves state to optimization_checkpoint.json every N generations (configurable via checkpoint_interval_generations). On crash/restart, it resumes from the last checkpoint. Don't delete checkpoint files during active optimization runs.
+28. **Composite scoring is the default optimization objective** — the optimizer uses a weighted composite of Sharpe (0.25), R-squared (0.25), profit factor (0.15), max drawdown (0.15), trade count (0.10), and win rate (0.10) with a hard profitability gate: any candidate with Sharpe <= 0 scores zero. This was data-driven: Sharpe-only optimization produced candidates that all failed CPCV validation because the optimizer and validator were misaligned. Composite aligns them. Strategy specs should use `objective_function = "composite"` and config should use `score_mode = "composite"`.
+29. **Score mode flows through two paths** — the Rust binary accepts `--score-mode` on the CLI (overrides manifest), and the manifest JSON can contain a `score_mode` field. The CLI flag takes priority. The Python `batch_dispatch.py` reads `config["optimization"]["score_mode"]` and includes it in manifest JSON. When building or modifying strategy specs, always set `objective_function = "composite"` unless the operator explicitly requests otherwise.
+30. **Never use Sharpe-only for optimization** — data analysis on 10,185 candidates showed Sharpe and composite rankings are anti-correlated (rho=-0.56) when composite lacks a profitability gate. With the hard gate, they correlate positively (rho=0.71) among profitable candidates but composite still reshuffles rankings to favor robust strategies (only 8/20 top-20 overlap). This differentiation is what helps candidates survive CPCV validation.

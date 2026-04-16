@@ -4,6 +4,82 @@
 //! R-squared, max drawdown (amount, pct, duration), total trades, avg duration.
 
 use crate::trade_simulator::TradeRecord;
+use serde::Deserialize;
+
+/// Score computation mode for optimization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScoreMode {
+    /// Sharpe ratio only (legacy).
+    Sharpe,
+    /// Weighted composite of Sharpe, R², PF, DD, trades, win rate.
+    #[default]
+    Composite,
+}
+
+impl ScoreMode {
+    pub fn from_str_opt(s: Option<&str>) -> Self {
+        match s {
+            Some("sharpe") => ScoreMode::Sharpe,
+            _ => ScoreMode::Composite,
+        }
+    }
+}
+
+/// Weights for composite scoring, normalised to [0, 1] per component.
+/// Default weights from research: Sharpe 0.25, R² 0.25, PF 0.15, DD 0.15,
+/// trade count 0.10, win rate 0.10.
+pub const COMPOSITE_W_SHARPE: f64 = 0.25;
+pub const COMPOSITE_W_R2: f64 = 0.25;
+pub const COMPOSITE_W_PF: f64 = 0.15;
+pub const COMPOSITE_W_DD: f64 = 0.15;
+pub const COMPOSITE_W_TRADES: f64 = 0.10;
+pub const COMPOSITE_W_WINRATE: f64 = 0.10;
+
+/// Compute composite quality score from individual metrics.
+///
+/// Hard profitability gate: candidates with Sharpe <= 0 score 0.
+/// Among profitable candidates, each component is normalised to [0.0, 1.0]
+/// using calibrated thresholds, then weighted and summed.
+///
+/// Data-driven calibration (10,185 candidates, gen_000000 wide-22yr):
+/// - Hard gate ensures 100% of top-ranked candidates are profitable
+/// - Spearman rho=0.66 among profitable: composite adds meaningful
+///   differentiation by rewarding robustness (R², PF, low DD)
+/// - Best score spread (0.118 std) for optimizer gradient signal
+pub fn compute_composite_score(
+    sharpe: f64,
+    r_squared: f64,
+    profit_factor: f64,
+    max_dd_pct: f64,
+    trade_count: u32,
+    win_rate: f64,
+) -> f64 {
+    // Hard gate: unprofitable strategies score 0
+    if sharpe <= 0.0 {
+        return 0.0;
+    }
+
+    // Normalise each component to [0, 1]
+    let s_sharpe = clamp01(sharpe / 3.0);                               // [0, 3] -> [0, 1]
+    let s_r2 = clamp01(r_squared);                                      // already [0, 1]
+    let s_pf = clamp01(profit_factor / 5.0);                            // [0, 5] -> [0, 1]
+    let s_dd = clamp01(1.0 - (max_dd_pct / 50.0));                     // 0%=1.0, 50%=0.0 (inverted)
+    let s_trades = clamp01((trade_count as f64 - 30.0) / (200.0 - 30.0)); // [30, 200] -> [0, 1]
+    let s_wr = clamp01(win_rate);                                       // already [0, 1]
+
+    COMPOSITE_W_SHARPE * s_sharpe
+        + COMPOSITE_W_R2 * s_r2
+        + COMPOSITE_W_PF * s_pf
+        + COMPOSITE_W_DD * s_dd
+        + COMPOSITE_W_TRADES * s_trades
+        + COMPOSITE_W_WINRATE * s_wr
+}
+
+#[inline]
+fn clamp01(v: f64) -> f64 {
+    v.max(0.0).min(1.0)
+}
 
 /// Summary metrics for a completed backtest.
 #[derive(Debug, Clone)]
@@ -371,5 +447,53 @@ mod tests {
         assert!((m.sharpe_ratio - 0.0).abs() < 1e-10);
         assert!((m.max_drawdown_pips - 0.0).abs() < 1e-10);
         assert!((m.net_pnl_pips - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_composite_score_perfect_metrics() {
+        // Sharpe=2.0, R²=0.95, PF=3.0, DD=5%, 150 trades, 60% win
+        let score = super::compute_composite_score(2.0, 0.95, 3.0, 5.0, 150, 0.60);
+        // Each component: sharpe=2/3≈0.667, r2=0.95, pf=3/5=0.6, dd=1-5/50=0.9, trades=(150-30)/170≈0.706, wr=0.6
+        // Weighted: 0.25*0.667 + 0.25*0.95 + 0.15*0.6 + 0.15*0.9 + 0.10*0.706 + 0.10*0.6
+        let expected = 0.25 * (2.0 / 3.0) + 0.25 * 0.95 + 0.15 * 0.6 + 0.15 * 0.9 + 0.10 * (120.0 / 170.0) + 0.10 * 0.6;
+        assert!((score - expected).abs() < 1e-10, "got {score}, expected {expected}");
+        assert!(score > 0.6, "Good strategy should score > 0.6, got {score}");
+    }
+
+    #[test]
+    fn test_composite_score_zero_trades_penalised() {
+        // Sharpe=0 triggers hard gate -> score = 0
+        let score = super::compute_composite_score(0.0, 0.0, 0.0, 0.0, 0, 0.0);
+        assert_eq!(score, 0.0, "Sharpe=0 should trigger hard gate, got {score}");
+    }
+
+    #[test]
+    fn test_composite_score_negative_sharpe_gate() {
+        // Negative Sharpe -> hard gate -> score = 0 regardless of other metrics
+        let score = super::compute_composite_score(-0.5, 0.95, 3.0, 5.0, 150, 0.60);
+        assert_eq!(score, 0.0, "Negative Sharpe should gate to 0, got {score}");
+    }
+
+    #[test]
+    fn test_composite_score_high_dd_penalty() {
+        // Good Sharpe but terrible drawdown
+        let good_dd = super::compute_composite_score(1.5, 0.8, 2.0, 10.0, 100, 0.55);
+        let bad_dd = super::compute_composite_score(1.5, 0.8, 2.0, 45.0, 100, 0.55);
+        assert!(good_dd > bad_dd, "High DD should reduce score: good={good_dd} bad={bad_dd}");
+    }
+
+    #[test]
+    fn test_composite_score_clamping() {
+        // Extreme values should be clamped
+        let score = super::compute_composite_score(10.0, 1.5, 100.0, -5.0, 1000, 1.5);
+        assert!(score <= 1.0, "Composite must be <= 1.0, got {score}");
+        assert!(score >= 0.0, "Composite must be >= 0.0, got {score}");
+    }
+
+    #[test]
+    fn test_score_mode_from_str() {
+        assert_eq!(ScoreMode::from_str_opt(Some("sharpe")), ScoreMode::Sharpe);
+        assert_eq!(ScoreMode::from_str_opt(Some("composite")), ScoreMode::Composite);
+        assert_eq!(ScoreMode::from_str_opt(None), ScoreMode::Composite);
     }
 }

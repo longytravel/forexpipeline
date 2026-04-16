@@ -196,6 +196,115 @@ class TestTradeClustering:
         assert cluster[0].evidence["clustered_month"] == "2020-01"
 
 
+class TestTimestampParsing:
+    """Regression tests for int64 microsecond timestamps.
+
+    The Rust backtester emits entry_time/exit_time as int64 microseconds
+    since the Unix epoch (see contracts/arrow_schemas.toml). Previously the
+    anomaly checks silently dropped these values (isinstance str guard) or
+    treated them as seconds, bucketing all trades into 1970-01 and producing
+    a spurious TRADE_CLUSTERING anomaly on the ma-crossover evidence pack.
+    """
+
+    def test_parse_entry_time_microseconds(self):
+        from analysis.anomaly_detector import _parse_entry_time
+
+        # 2025-01-14T11:00:00Z — real value from the ma-crossover v004 trade log.
+        us = 1_736_852_400_000_000
+        parsed = _parse_entry_time(us)
+        assert parsed is not None
+        assert parsed.year == 2025
+        assert parsed.month == 1
+        assert parsed.day == 14
+        assert parsed.hour == 11
+        assert parsed.strftime("%Y-%m") == "2025-01"
+
+    def test_parse_entry_time_nanoseconds(self):
+        """Legacy fixtures store int64 nanoseconds — must also bucket correctly."""
+        from analysis.anomaly_detector import _parse_entry_time
+
+        ns = 1_735_804_800_000_000_000  # 2025-01-02T08:00:00Z in ns
+        parsed = _parse_entry_time(ns)
+        assert parsed is not None
+        assert parsed.year == 2025
+        assert parsed.strftime("%Y-%m") == "2025-01"
+
+    def test_parse_entry_time_iso_string(self):
+        from analysis.anomaly_detector import _parse_entry_time
+
+        parsed = _parse_entry_time("2025-01-14T11:00:00+00:00")
+        assert parsed is not None
+        assert parsed.year == 2025
+        assert parsed.strftime("%Y-%m") == "2025-01"
+
+    def test_parse_entry_time_handles_none_and_garbage(self):
+        from analysis.anomaly_detector import _parse_entry_time
+
+        assert _parse_entry_time(None) is None
+        assert _parse_entry_time("not-a-date") is None
+        assert _parse_entry_time(True) is None  # bool must not be treated as int
+
+    def test_trade_clustering_with_microsecond_timestamps(self, tmp_path):
+        """All trades in Jan 2025 (as microseconds) must bucket to 2025-01, not 1970-01."""
+        # 2025-01-14T11:00:00Z in microseconds, then one trade per day for 14 days.
+        base_us = 1_736_852_400_000_000
+        day_us = 24 * 60 * 60 * 1_000_000
+        trades = []
+        for i in range(14):
+            entry_us = base_us + i * day_us
+            trades.append({
+                "trade_id": i + 1,
+                "direction": "long",
+                "entry_time": entry_us,            # int64 microseconds
+                "exit_time": entry_us + 3_600_000_000,  # +1 hour
+                "pnl_pips": 5.0 if i % 2 == 0 else -3.0,
+                "session": "london",
+                "lot_size": 0.1,
+            })
+        # Add a few trades in Feb 2025 so clustering still has a dominant bucket.
+        feb_base_us = base_us + 31 * day_us
+        for i in range(4):
+            entry_us = feb_base_us + i * day_us
+            trades.append({
+                "trade_id": 100 + i,
+                "direction": "long",
+                "entry_time": entry_us,
+                "exit_time": entry_us + 3_600_000_000,
+                "pnl_pips": 2.0,
+                "session": "london",
+                "lot_size": 0.1,
+            })
+
+        # Exercise the checker directly (we do not go through SQLite here because
+        # the SQLite schema stores entry_time as TEXT — this test covers the
+        # direct-Arrow code path used by evidence_pack._compute_trade_distribution).
+        from analysis.anomaly_detector import (
+            ANOMALY_THRESHOLDS,
+            _check_trade_clustering,
+        )
+
+        flag = _check_trade_clustering(trades, dict(ANOMALY_THRESHOLDS))
+        assert flag is not None, "expected a TRADE_CLUSTERING flag"
+        assert flag.type == AnomalyType.TRADE_CLUSTERING
+        assert flag.evidence["clustered_month"] == "2025-01"
+        assert flag.evidence["clustered_month"] != "1970-01"
+
+    def test_trade_distribution_with_microsecond_timestamps(self):
+        """evidence_pack._compute_trade_distribution must bucket microseconds correctly."""
+        from analysis.evidence_pack import _compute_trade_distribution
+
+        # 2025-01-14T11:00:00Z
+        us = 1_736_852_400_000_000
+        trades = [
+            {"entry_time": us, "session": "london"},
+            {"entry_time": us + 86_400_000_000, "session": "london"},
+        ]
+        dist = _compute_trade_distribution(trades)
+        assert "2025-01" in dist["by_month"]
+        assert "1970-01" not in dist["by_month"]
+        assert dist["by_month"]["2025-01"] == 2
+
+
 class TestWinRateExtremes:
 
     def test_detect_win_rate_extremes_high(self, tmp_path):

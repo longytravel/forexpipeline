@@ -11,6 +11,7 @@ from __future__ import annotations
 import sqlite3
 from collections import Counter
 from datetime import datetime, timezone
+from numbers import Integral
 from pathlib import Path
 from typing import Any
 
@@ -176,6 +177,53 @@ def _check_low_trade_count(
     )
 
 
+def _parse_entry_time(entry: Any) -> datetime | None:
+    """Parse an ``entry_time`` value into a timezone-aware UTC datetime.
+
+    Accepts both representations used by the pipeline:
+      * ISO 8601 string (as stored in SQLite ``trades.entry_time``).
+      * int64 epoch timestamp (as emitted by the Rust backtester into
+        ``trade-log.arrow`` — see arrow_schemas.toml). The unit is
+        auto-detected (s / ms / us / ns) because the Rust backtester
+        forwards whatever unit the input market-data uses; this mirrors
+        the auto-detection in ``orchestrator/signal_precompute.py``.
+
+    Returns ``None`` if the value is missing or unparseable. This defensive
+    handling prevents the bug where int64 microseconds were silently treated
+    as ISO strings, bucketing all trades into 1970-01.
+    """
+    if entry is None:
+        return None
+    # Integer epoch timestamp (Arrow int64 path).
+    # Note: bool is a subclass of int; explicitly reject it.
+    if isinstance(entry, Integral) and not isinstance(entry, bool):
+        try:
+            v = int(entry)
+            abs_v = abs(v)
+            if abs_v > 10**17:
+                seconds, remainder = divmod(v, 1_000_000_000)
+                micros = remainder // 1_000
+            elif abs_v > 10**14:
+                seconds, micros = divmod(v, 1_000_000)
+            elif abs_v > 10**11:
+                seconds, millis = divmod(v, 1_000)
+                micros = millis * 1_000
+            else:
+                seconds, micros = v, 0
+            return datetime.fromtimestamp(seconds, tz=timezone.utc).replace(
+                microsecond=micros,
+            )
+        except (OverflowError, OSError, ValueError):
+            return None
+    # ISO 8601 string (SQLite path).
+    if isinstance(entry, str):
+        try:
+            return datetime.fromisoformat(entry.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
 def _check_zero_trade_windows(
     trades: list[dict], run_meta: dict, cfg: dict,
 ) -> AnomalyFlag | None:
@@ -186,17 +234,12 @@ def _check_zero_trade_windows(
         # If there are no trades at all, low_trade_count will catch it
         return None
 
-    # Parse entry_time timestamps
+    # Parse entry_time timestamps (handles ISO strings and int64 microseconds).
     timestamps: list[datetime] = []
     for t in trades:
-        entry = t.get("entry_time")
-        if entry and isinstance(entry, str):
-            try:
-                timestamps.append(
-                    datetime.fromisoformat(entry.replace("Z", "+00:00"))
-                )
-            except (ValueError, TypeError):
-                continue
+        parsed = _parse_entry_time(t.get("entry_time"))
+        if parsed is not None:
+            timestamps.append(parsed)
 
     if len(timestamps) < 2:
         return None
@@ -380,14 +423,14 @@ def _check_trade_clustering(
     if total == 0:
         return None
 
-    # Count trades per calendar month
+    # Count trades per calendar month. Handles both ISO-string timestamps
+    # (SQLite path) and int64 microsecond timestamps (direct Arrow path) —
+    # previously the microsecond path was silently mis-bucketed into 1970-01.
     month_counts: Counter[str] = Counter()
     for t in trades:
-        entry = t.get("entry_time")
-        if entry and isinstance(entry, str):
-            # Extract YYYY-MM from ISO timestamp
-            month_key = entry[:7]  # "2025-03"
-            month_counts[month_key] += 1
+        parsed = _parse_entry_time(t.get("entry_time"))
+        if parsed is not None:
+            month_counts[parsed.strftime("%Y-%m")] += 1
 
     if not month_counts:
         return None

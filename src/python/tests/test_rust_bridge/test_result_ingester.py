@@ -8,7 +8,11 @@ import pyarrow.ipc
 import pytest
 
 from artifacts.sqlite_manager import SQLiteManager
-from rust_bridge.result_ingester import ResultIngester, _ns_to_iso8601
+from rust_bridge.result_ingester import (
+    ResultIngester,
+    _epoch_int_to_iso8601,
+    _us_to_iso8601,
+)
 
 
 @pytest.fixture
@@ -35,21 +39,48 @@ def ingester(db_with_schema):
     return ResultIngester(db_with_schema.connection)
 
 
-class TestNsToIso8601:
-    def test_basic_conversion(self):
-        """Nanosecond timestamp converts to ISO 8601."""
-        # 2025-01-02T08:00:00Z in nanoseconds
-        ns = int(datetime(2025, 1, 2, 8, 0, 0, tzinfo=timezone.utc).timestamp()) * 1_000_000_000
-        result = _ns_to_iso8601(ns)
-        assert result.startswith("2025-01-02T08:00:00")
+class TestEpochIntToIso8601:
+    """The Rust backtester forwards the input market-data ``timestamp``
+    through into ``entry_time``/``exit_time`` as an int64. Depending on the
+    upstream unit (s/ms/us/ns) this helper must auto-detect and produce the
+    correct ISO 8601 string.
+    """
+
+    def test_microseconds_conversion(self):
+        """Microsecond timestamp (current pipeline) decodes to the right date."""
+        # 2025-01-14T11:00:00Z in microseconds — the actual value observed in
+        # artifacts/ma-crossover/v004/backtest/trade-log.arrow.
+        us = 1_736_852_400_000_000
+        result = _epoch_int_to_iso8601(us)
+        assert result.startswith("2025-01-14T11:00:00")
         assert "+00:00" in result or "Z" in result
 
-    def test_preserves_microseconds(self):
-        """Microsecond precision is preserved."""
+    def test_nanoseconds_conversion(self):
+        """Nanosecond timestamp (legacy fixtures) still decodes correctly."""
+        ns = int(datetime(2025, 1, 2, 8, 0, 0, tzinfo=timezone.utc).timestamp()) * 1_000_000_000
+        result = _epoch_int_to_iso8601(ns)
+        assert result.startswith("2025-01-02T08:00:00")
+
+    def test_preserves_microsecond_precision(self):
         base_s = int(datetime(2025, 6, 15, 12, 30, 45, tzinfo=timezone.utc).timestamp())
-        ns = base_s * 1_000_000_000 + 123_456_000  # 123456 microseconds
-        result = _ns_to_iso8601(ns)
+        us = base_s * 1_000_000 + 123_456
+        result = _epoch_int_to_iso8601(us)
         assert "123456" in result
+
+    def test_does_not_collapse_to_1970(self):
+        """Regression: the previous (nanosecond-only) implementation divided
+        microsecond values by 1e9 and silently collapsed 2025 timestamps into
+        1970-01, producing a bogus TRADE_CLUSTERING anomaly on evidence packs.
+        """
+        us = 1_736_852_400_000_000  # 2025-01-14
+        result = _epoch_int_to_iso8601(us)
+        assert "1970" not in result
+        assert result.startswith("2025-")
+
+    def test_legacy_alias(self):
+        """Backwards-compatibility alias must return the same result."""
+        us = 1_736_852_400_000_000
+        assert _us_to_iso8601(us) == _epoch_int_to_iso8601(us)
 
 
 class TestResultIngester:

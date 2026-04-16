@@ -17,12 +17,46 @@ from logging_setup.setup import get_logger
 logger = get_logger("pipeline.rust_bridge.ingester")
 
 
-def _ns_to_iso8601(ns: int) -> str:
-    """Convert nanosecond UTC timestamp to ISO 8601 string."""
-    seconds = ns // 1_000_000_000
-    micros = (ns % 1_000_000_000) // 1_000
+def _epoch_int_to_iso8601(value: int) -> str:
+    """Convert an int64 epoch timestamp to ISO 8601, auto-detecting the unit.
+
+    The Rust backtester forwards the input market-data ``timestamp`` column
+    straight through into ``entry_time``/``exit_time`` without unit conversion.
+    Depending on the data-pipeline build, that timestamp may be seconds,
+    milliseconds, microseconds or nanoseconds since the Unix epoch. We mirror
+    the auto-detection already used in ``orchestrator/signal_precompute.py``
+    (see ``pd.to_datetime(..., unit=unit)``): values > 1e17 are nanoseconds,
+    > 1e14 are microseconds, > 1e11 are milliseconds, otherwise seconds.
+
+    Historical note: the previous implementation was named ``_ns_to_iso8601``
+    and hard-coded ``// 1_000_000_000``. When the data pipeline migrated to
+    microsecond timestamps, every ingested trade collapsed into 1970-01, which
+    surfaced as a spurious TRADE_CLUSTERING anomaly on evidence packs.
+    """
+    v = int(value)
+    abs_v = abs(v)
+    if abs_v > 10**17:
+        # nanoseconds
+        seconds, remainder = divmod(v, 1_000_000_000)
+        micros = remainder // 1_000
+    elif abs_v > 10**14:
+        # microseconds
+        seconds, micros = divmod(v, 1_000_000)
+    elif abs_v > 10**11:
+        # milliseconds
+        seconds, millis = divmod(v, 1_000)
+        micros = millis * 1_000
+    else:
+        # seconds
+        seconds = v
+        micros = 0
     dt = datetime.fromtimestamp(seconds, tz=timezone.utc).replace(microsecond=micros)
     return dt.isoformat()
+
+
+# Backwards-compatible aliases for callers that imported the older names.
+_us_to_iso8601 = _epoch_int_to_iso8601
+_ns_to_iso8601 = _epoch_int_to_iso8601
 
 
 def _load_schema_contract(schema_name: str) -> list[dict]:
@@ -114,7 +148,7 @@ class ResultIngester:
         """Read trade-log.arrow and insert rows into SQLite trades table.
 
         Arrow→SQLite field mapping:
-        - entry_time/exit_time Int64 (ns UTC) → TEXT (ISO 8601)
+        - entry_time/exit_time Int64 (microseconds since Unix epoch, UTC) → TEXT (ISO 8601)
         - entry_price/exit_price Float64 → REAL (cost-adjusted)
         - entry_spread + exit_spread → spread_cost REAL (aggregated)
         - entry_slippage + exit_slippage → slippage_cost REAL (aggregated)
@@ -326,8 +360,8 @@ class ResultIngester:
         """Map a single Arrow row to SQLite trades columns."""
         trade_id = table.column("trade_id")[idx].as_py()
         direction = table.column("direction")[idx].as_py().lower()
-        entry_time = _ns_to_iso8601(table.column("entry_time")[idx].as_py())
-        exit_time = _ns_to_iso8601(table.column("exit_time")[idx].as_py())
+        entry_time = _epoch_int_to_iso8601(table.column("entry_time")[idx].as_py())
+        exit_time = _epoch_int_to_iso8601(table.column("exit_time")[idx].as_py())
         entry_price = table.column("entry_price")[idx].as_py()
         exit_price = table.column("exit_price")[idx].as_py()
         entry_spread = table.column("entry_spread")[idx].as_py()

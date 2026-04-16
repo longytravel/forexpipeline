@@ -329,12 +329,17 @@ def _compute_trade_distribution(trades: list[dict[str, Any]]) -> dict[str, Any]:
         if count > 0:
             by_session[session] = count
 
+    # Bucket trades by calendar month. Handles both ISO-string timestamps
+    # (SQLite path) and int64 microsecond timestamps (direct Arrow path).
+    # Previously int64 microseconds silently fell through the isinstance(str)
+    # check and produced an empty distribution.
+    from analysis.anomaly_detector import _parse_entry_time
+
     by_month: Counter[str] = Counter()
     for t in trades:
-        entry = t.get("entry_time")
-        if entry and isinstance(entry, str):
-            month_key = entry[:7]
-            by_month[month_key] += 1
+        parsed = _parse_entry_time(t.get("entry_time"))
+        if parsed is not None:
+            by_month[parsed.strftime("%Y-%m")] += 1
 
     return {
         "by_session": by_session,

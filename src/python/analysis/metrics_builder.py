@@ -121,26 +121,22 @@ def _compute_max_drawdown_pct(pnls: list[float]) -> float:
 def _compute_avg_duration(trades: list[dict[str, Any]]) -> float:
     """Compute average trade duration in hours from entry/exit times.
 
-    Handles ISO 8601 string timestamps. Returns 0.0 if timestamps
-    are not available.
+    Handles both ISO 8601 string timestamps (SQLite path) and int64
+    microseconds-since-epoch timestamps (Arrow path — see
+    ``contracts/arrow_schemas.toml``). Returns 0.0 if timestamps are
+    not available.
     """
-    from datetime import datetime
+    from analysis.anomaly_detector import _parse_entry_time
 
     durations = []
     for t in trades:
-        entry = t.get("entry_time")
-        exit_ = t.get("exit_time")
-        if entry is None or exit_ is None:
+        et = _parse_entry_time(t.get("entry_time"))
+        xt = _parse_entry_time(t.get("exit_time"))
+        if et is None or xt is None:
             continue
-        try:
-            if isinstance(entry, str) and isinstance(exit_, str):
-                et = datetime.fromisoformat(entry.replace("Z", "+00:00"))
-                xt = datetime.fromisoformat(exit_.replace("Z", "+00:00"))
-                delta = (xt - et).total_seconds() / 3600.0
-                if delta >= 0:
-                    durations.append(delta)
-        except (ValueError, TypeError):
-            continue
+        delta = (xt - et).total_seconds() / 3600.0
+        if delta >= 0:
+            durations.append(delta)
 
     if not durations:
         return 0.0

@@ -6,6 +6,7 @@ logic. Concrete executors are registered per stage and injected via the
 """
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -390,6 +391,7 @@ class StageRunner:
             for attempt in range(max_attempts + 1):
                 try:
                     context = self._build_executor_context()
+                    context["backtest_run_id"] = state.run_id
                     result = executor.execute(
                         self.strategy_id, context
                     )
@@ -479,8 +481,9 @@ class StageRunner:
                 },
             )
 
-            # Post-stage hook: generate evidence pack after backtest execution
-            if stage == PipelineStage.BACKTEST_RUNNING and result.outcome == "success":
+            # Post-stage hook: generate evidence pack after result processing
+            # (ResultExecutor in BACKTEST_COMPLETE creates the SQLite DB needed)
+            if stage == PipelineStage.BACKTEST_COMPLETE and result.outcome == "success":
                 self._generate_evidence_pack(state, result)
 
         return state
@@ -551,6 +554,13 @@ class StageRunner:
                         Path(storage_path) / "arrow" / f"{pair}_2025_full" / "v1" / "market-data.arrow"
                     )
 
+        # rust_output_dir: latest existing version's backtest dir
+        # (needed by ResultExecutor in BACKTEST_COMPLETE to find Rust output)
+        if existing:
+            rust_output_dir = str(strategy_dir / existing[-1] / "backtest")
+        else:
+            rust_output_dir = str(output_dir)
+
         return {
             "artifacts_dir": str(self.artifacts_dir),
             "strategy_spec_path": strategy_spec_path,
@@ -560,6 +570,7 @@ class StageRunner:
             "memory_budget_mb": int(backtesting.get("memory_budget_mb", 4096)),
             "output_directory": backtesting.get(
                 "output_directory", str(output_dir)),
+            "rust_output_dir": rust_output_dir,
         }
 
     def _generate_evidence_pack(self, state: PipelineState, result: StageResult | None) -> None:
@@ -572,17 +583,25 @@ class StageRunner:
             from analysis.evidence_pack import assemble_evidence_pack
 
             backtest_id = state.run_id
-            # Resolve db_path from latest version directory
+            # db_path is at strategy level (where ResultProcessor writes it)
             strategy_dir = self.artifacts_dir / self.strategy_id
-            version_dirs = sorted(
-                [d for d in strategy_dir.iterdir()
-                 if d.is_dir() and d.name.startswith("v")],
-                reverse=True,
-            ) if strategy_dir.exists() else []
-            if version_dirs:
-                db_path = version_dirs[0] / "pipeline.db"
-            else:
-                db_path = strategy_dir / "v001" / "pipeline.db"
+            db_path = strategy_dir / "pipeline.db"
+
+            # Write a minimal manifest in the backtest output dir so
+            # _find_version_dir can locate the correct version among many.
+            for cs in reversed(state.completed_stages):
+                if cs.stage == "backtest-running" and cs.artifact_path:
+                    bt_dir = Path(cs.artifact_path)
+                    if not bt_dir.is_absolute():
+                        bt_dir = Path.cwd() / bt_dir
+                    manifest_file = bt_dir / "manifest.json"
+                    if bt_dir.exists() and not manifest_file.exists():
+                        manifest_file.write_text(json.dumps({
+                            "backtest_run_id": backtest_id,
+                            "strategy_id": self.strategy_id,
+                        }))
+                    break
+
             pack = assemble_evidence_pack(
                 backtest_id=backtest_id,
                 db_path=db_path,

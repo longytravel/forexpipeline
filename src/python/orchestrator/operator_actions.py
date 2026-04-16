@@ -144,9 +144,11 @@ def run_backtest(strategy_id: str, config: dict) -> dict:
     pipeline_config = PipelineConfig.from_dict(config)
     error_run_id = str(uuid.uuid4())
 
-    # Import BacktestExecutor lazily to avoid circular imports
+    # Import executors lazily to avoid circular imports
     from rust_bridge.backtest_executor import BacktestExecutor
     from rust_bridge.batch_runner import BatchRunner
+    from rust_bridge.result_executor import ResultExecutor
+    from rust_bridge.result_processor import ResultProcessor
 
     binary_path = _resolve_binary_path(config)
     timeout = config.get("backtesting", {}).get("timeout_s", 300)
@@ -157,7 +159,19 @@ def run_backtest(strategy_id: str, config: dict) -> dict:
         session_schedule=session_schedule if session_schedule else None,
     )
 
-    executors = {PipelineStage.BACKTEST_RUNNING: executor}
+    # Wire up ResultExecutor for evidence pack generation
+    strategy_dir = artifacts_dir / strategy_id
+    db_path = strategy_dir / "pipeline.db"
+    result_processor = ResultProcessor(
+        artifacts_root=artifacts_dir,
+        sqlite_db_path=db_path,
+    )
+    result_executor = ResultExecutor(result_processor)
+
+    executors = {
+        PipelineStage.BACKTEST_RUNNING: executor,
+        PipelineStage.BACKTEST_COMPLETE: result_executor,
+    }
 
     runner = StageRunner(
         strategy_id=strategy_id,
@@ -168,6 +182,19 @@ def run_backtest(strategy_id: str, config: dict) -> dict:
     )
 
     state_path = _state_path(strategy_id, artifacts_dir)
+
+    # Auto-reset non-recoverable failed states
+    if state_path.exists():
+        try:
+            prev_state = PipelineState.load(state_path)
+            if prev_state.error and not prev_state.error.get("recoverable", True):
+                logger.info(
+                    f"Auto-resetting non-recoverable failed state for '{strategy_id}'",
+                    extra={"component": "pipeline.operator"},
+                )
+                state_path.unlink()
+        except Exception:
+            pass  # Corrupt state file — will be overwritten by new run
 
     try:
         if state_path.exists():
@@ -210,19 +237,46 @@ def run_backtest(strategy_id: str, config: dict) -> dict:
     # Try to find evidence pack
     evidence_pack_path = _find_latest_evidence_pack(strategy_id, artifacts_dir)
 
+    # Zero-trade detection: check metrics for empty results
+    warning = None
+    try:
+        import pyarrow.ipc as _ipc
+        metrics_candidates = sorted(
+            (artifacts_dir / strategy_id).rglob("metrics.arrow"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if metrics_candidates:
+            _reader = _ipc.open_file(str(metrics_candidates[0]))
+            _metrics = _reader.read_all().to_pandas()
+            if len(_metrics) > 0 and _metrics["total_trades"].iloc[0] == 0:
+                warning = (
+                    "Backtest produced zero trades. Likely causes: "
+                    "missing signal column in enriched data, "
+                    "overly restrictive session filter, or "
+                    "indicator not producing signals for this pair/timeframe."
+                )
+                logger.warning(
+                    warning,
+                    extra={"component": "pipeline.operator"},
+                )
+    except Exception:
+        pass  # Don't block success on metrics read failure
+
     _log_action(
         "run_backtest", strategy_id,
         run_id=state.run_id, config_hash=state.config_hash,
     )
 
     return {
-        "status": "success",
+        "status": "warning" if warning else "success",
         "output_dir": str(artifacts_dir / strategy_id),
         "evidence_pack_path": evidence_pack_path,
         "backtest_id": state.run_id,
         "run_id": state.run_id,
         "config_hash": state.config_hash,
         "error": None,
+        "warning": warning,
     }
 
 

@@ -151,7 +151,11 @@ class GateManager:
         if last_completed.artifact_path and artifacts_dir:
             artifact = Path(last_completed.artifact_path)
             if not artifact.is_absolute():
-                artifact = artifacts_dir / artifact
+                # artifact_path may already include artifacts_dir prefix
+                # (executor context builds full relative path from project root).
+                # Try as-is first, then with artifacts_dir prepended.
+                if not artifact.exists():
+                    artifact = artifacts_dir / artifact
             if not artifact.exists():
                 return False, f"Artifact missing: {last_completed.artifact_path}"
 
